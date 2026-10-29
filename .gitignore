@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches and virtual environments
+.venv/
+venv/
+ENV/
+.cache/
+
+# Ignore all image binaries (per assignment: lightweight repo, metadata-only distribution)
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.bmp
+*.gif
+*.tif
+*.tiff
+*.zip
+*.tar.gz
+
+# Specifically preserve all metadata, logs, reports, and manifests in dataset/
+!dataset/**/*.csv
+!dataset/**/*.json
+!dataset/**/README.md
+!dataset/**/.gitkeep
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

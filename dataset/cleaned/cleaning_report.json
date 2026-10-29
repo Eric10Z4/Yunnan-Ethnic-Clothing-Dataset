@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-10-29 17:01:30",
+  "total_raw_processed": 6259,
+  "total_cleaned_accepted": 5424,
+  "total_excluded": 835,
+  "retention_rate": "86.66%",
+  "elapsed_seconds": 47.22,
+  "exclusions_by_stage": {
+    "SHARPNESS": 7,
+    "GEOMETRY": 67,
+    "INTEGRITY": 18,
+    "LOW_INFO": 1,
+    "PERCEPTUAL_DEDUP": 461,
+    "EXACT_DEDUP": 281
+  },
+  "distribution_by_ethnicity": {
+    "Bai": 589,
+    "Dai": 720,
+    "Hani": 355,
+    "Jingpo": 250,
+    "Miao": 662,
+    "Naxi": 445,
+    "Tibetan": 612,
+    "Wa": 445,
+    "Yi": 630,
+    "Zhuang": 716
+  },
+  "thresholds_used": {
+    "min_dim_px": 220,
+    "max_aspect_ratio": 3.0,
+    "min_luminance_std": 15.0,
+    "min_sharpness_laplacian_variance": 45.0,
+    "phash_hamming_threshold": 5
+  }
+}
