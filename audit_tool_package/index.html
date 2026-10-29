@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云南民族服饰图像数据集 · 人工质量评审与验收系统</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --warning: #f57f17;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: var(--bg); color: #333; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* 顶部导航与统计 */
+        header { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .header-title h1 { font-size: 18px; color: #111; display: flex; align-items: center; gap: 8px; }
+        .header-title p { font-size: 12px; color: #666; margin-top: 2px; }
+        .header-stats { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+        .stat-badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; }
+        .stat-total { background: #e3f2fd; color: #1565c0; }
+        .stat-ok { background: #e8f5e9; color: var(--success); }
+        .stat-ng { background: #ffebee; color: var(--danger); }
+        .stat-pending { background: #fff8e1; color: var(--warning); }
+        
+        /* 顶部操作条 */
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { background: #f5f5f5; }
+        .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-primary:hover { background: #1565c0; }
+        .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+        .btn-success:hover { background: #1b5e20; }
+        
+        /* 核心布局 */
+        .workspace { flex: 1; display: flex; overflow: hidden; }
+        
+        /* 左侧：评审标准规范指南 */
+        .panel-guide { width: 340px; background: #fff; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+        .guide-section { margin-bottom: 20px; }
+        .guide-section h3 { font-size: 14px; margin-bottom: 10px; color: #111; border-left: 4px solid var(--primary); padding-left: 8px; }
+        .rule-card { padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; }
+        .rule-pass { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
+        .rule-fail { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        .rule-card strong { display: block; font-size: 13px; margin-bottom: 4px; }
+        
+        /* 中间：主评审大图展示区 */
+        .panel-viewer { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; position: relative; background: #e8ebf0; }
+        .image-container { width: 512px; height: 512px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .image-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .image-stamp { position: absolute; top: 20px; right: 20px; padding: 8px 18px; border-radius: 8px; font-size: 18px; font-weight: 900; letter-spacing: 2px; transform: rotate(12deg); display: none; }
+        .stamp-pass { border: 3px solid var(--success); color: var(--success); background: rgba(255,255,255,0.9); display: block; }
+        .stamp-fail { border: 3px solid var(--danger); color: var(--danger); background: rgba(255,255,255,0.9); display: block; }
+        
+        .viewer-controls { margin-top: 18px; display: flex; gap: 20px; }
+        .btn-decision { padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: 900; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 8px; transition: transform 0.1s; }
+        .btn-decision:active { transform: scale(0.96); }
+        .btn-pass { background: #2e7d32; color: #fff; }
+        .btn-pass:hover { background: #1b5e20; }
+        .btn-fail { background: #c62828; color: #fff; }
+        .btn-fail:hover { background: #b71c1c; }
+        
+        .shortcut-hint { font-size: 12px; color: #666; margin-top: 8px; text-align: center; }
+        .key { display: inline-block; padding: 2px 6px; background: #fff; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-weight: bold; margin: 0 2px; }
+        
+        /* 右侧：样本信息与跳转抽屉 */
+        .panel-info { width: 320px; background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .info-header { padding: 16px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: bold; }
+        .info-body { padding: 16px; flex: 1; overflow-y: auto; font-size: 13px; }
+        .info-row { margin-bottom: 12px; }
+        .info-label { color: #888; font-size: 12px; margin-bottom: 2px; }
+        .info-val { font-weight: 600; color: #222; word-break: break-all; }
+        .vlm-box { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-top: 12px; }
+        .vlm-title { font-weight: bold; font-size: 12px; color: #555; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        
+        /* 底部导航翻页器 */
+        .info-nav { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 弹窗遮罩 */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+        .modal-card { background: #fff; border-radius: 12px; width: 480px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal-card h2 { font-size: 18px; margin-bottom: 12px; color: #111; }
+        .modal-card p { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 20px; }
+        .modal-card textarea { width: 100%; height: 180px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 16px; resize: none; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1>🏛️ 云南民族服饰图像数据集 · 人工质量评审系统</h1>
+            <p>计算机视觉期中大作业 | 阶段三：人机闭环验收评审</p>
+        </div>
+        <div class="header-stats">
+            <span class="stat-badge stat-total" id="statTotal">总进度: 0 / 1569</span>
+            <span class="stat-badge stat-ok" id="statPass">✅ 合格: 0</span>
+            <span class="stat-badge stat-ng" id="statFail">❌ 不合格: 0</span>
+            <span class="stat-badge stat-pending" id="statPending">⏳ 待评审: 1569</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn" onclick="showHelp()">📖 评审标准说明</button>
+            <button class="btn btn-success" onclick="exportResults()">💾 导出评审结果清单</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- 左侧规范 -->
+        <div class="panel-guide">
+            <div class="guide-section">
+                <h3>📋 评审考核核心红线</h3>
+                <p style="color:#666; margin-bottom: 12px;">请仔细比对中央图片，满足以下【合格标准】方可点击“合格”，有一项严重违反则判定“不合格”。</p>
+                
+                <div class="rule-card rule-pass">
+                    <strong>✅ 【合格】必备标准（PASS）</strong>
+                    1. <strong>单主体展示</strong>：画面必须只有【一位模特穿着】或【一件服饰单品展示】。<br>
+                    2. <strong>主体完整可辨</strong>：上衣、下装（或裙装）、特色头饰清晰可见，无严重残破截断。<br>
+                    3. <strong>背景纯白干净</strong>：背景为纯白，四周无大块复杂原图背景块、无明显污斑阴影。
+                </div>
+
+                <div class="rule-card rule-fail">
+                    <strong>❌ 【不合格】一票否决项（FAIL）</strong>
+                    1. <strong>多人合影</strong>：画面中出现 2 人及以上（无论抠图是否成功，严禁多人合影！）。<br>
+                    2. <strong>严重残破/断头断肢</strong>：人物身体严重缺失、只剩半个肩膀或服饰被切掉一半。<br>
+                    3. <strong>非服饰工艺品</strong>：仅展示桌布、围巾角、挂画，并非衣服本身。<br>
+                    4. <strong>抠图严重失真</strong>：大面积烟雾污块、严重的锯齿撕裂。
+                </div>
+            </div>
+
+            <div class="guide-section">
+                <h3>⌨️ 极速盲操快捷键</h3>
+                <p><span class="key">J</span> 或 <span class="key">A</span> 或 <span class="key">1</span> ：标记为 <strong>【合格 (PASS)】</strong> 并自动切下一张</p>
+                <p style="margin-top:6px;"><span class="key">K</span> 或 <span class="key">D</span> 或 <span class="key">2</span> ：标记为 <strong>【不合格 (FAIL)】</strong> 并自动切下一张</p>
+                <p style="margin-top:6px;"><span class="key">←</span> / <span class="key">→</span> ：上翻一张 / 下翻一张</p>
+            </div>
+            
+            <div class="guide-section">
+                <h3>💡 评审温馨提示</h3>
+                <p style="color:#666;">系统会自动实时保存您的评审进度到浏览器本地（刷新不会丢失数据）。评审全部完成后，点击右上角【导出评审结果清单】，将生成的 CSV 清单交付给我们即可！</p>
+            </div>
+        </div>
+
+        <!-- 中间大图区 -->
+        <div class="panel-viewer">
+            <div class="image-container" id="imageContainer">
+                <img id="mainImage" src="" alt="待评审服饰图像">
+                <div class="image-stamp" id="stamp"></div>
+            </div>
+
+            <div class="viewer-controls">
+                <button class="btn-decision btn-pass" onclick="decide('PASS')">
+                    <span>✅ 合格 (PASS)</span>
+                </button>
+                <button class="btn-decision btn-fail" onclick="decide('FAIL')">
+                    <span>❌ 不合格 (FAIL)</span>
+                </button>
+            </div>
+
+            <div class="shortcut-hint">
+                快捷键：按 <span class="key">J</span> 标记合格，按 <span class="key">K</span> 标记不合格，按 <span class="key">←</span> / <span class="key">→</span> 翻页
+            </div>
+        </div>
+
+        <!-- 右侧详情与跳转 -->
+        <div class="panel-info">
+            <div class="info-header">📌 样本属性与 AI 辅助质检建议</div>
+            <div class="info-body">
+                <div class="info-row">
+                    <div class="info-label">样本序号 / 编号</div>
+                    <div class="info-val" id="infoIndex">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">所属民族 (Ethnicity)</div>
+                    <div class="info-val" id="infoEthnicity" style="color:var(--primary); font-size:15px;">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">文件名 (Filename)</div>
+                    <div class="info-val" id="infoFilename" style="font-family: monospace; font-size: 11px;">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">当前人工判定状态</div>
+                    <div class="info-val" id="infoMyStatus" style="font-size:15px;">⏳ 未评审</div>
+                </div>
+
+                <div class="vlm-box">
+                    <div class="vlm-title">
+                        <span>🤖 VLM 视觉大模型预检结果</span>
+                        <span id="infoVlmScore" style="color:var(--primary);">-</span>
+                    </div>
+                    <div class="info-row" style="margin-bottom:6px;">
+                        <div class="info-label">AI 预判状态</div>
+                        <div class="info-val" id="infoVlmStatus">-</div>
+                    </div>
+                    <div class="info-row" style="margin-bottom:0;">
+                        <div class="info-label">AI 缺陷诊断与评语</div>
+                        <div class="info-val" id="infoVlmSummary" style="font-size:12px; font-weight:normal; color:#444; line-height:1.4;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-nav">
+                <button class="btn" onclick="prevItem()">上一张 (←)</button>
+                <span id="jumpBox" style="font-size:12px; color:#666;">1 / 1569</span>
+                <button class="btn" onclick="nextItem()">下一张 (→)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div class="modal" id="modalHelp">
+        <div class="modal-card">
+            <h2>📖 评审操作与合格规范细则</h2>
+            <p>1. <strong>目的</strong>：我们正在构建高质量计算机视觉数据集。任务书严格规定：图像必须为纯白背景、居中、单主体穿着或单件服饰，绝对禁止合影拼图。<br><br>
+               2. <strong>您的任务</strong>：快速浏览每张图片。如果主体是单人/单件衣服且干净，按【合格】；如果发现有多人合照残留、断头断臂或大片脏斑，按【不合格】。<br><br>
+               3. <strong>交接方式</strong>：全部打完后点击【导出评审结果清单】，将保存的 CSV 文件发送给团队负责人邹弘辉核对入库！</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeModal('modalHelp')">我明白了，开始评审</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        const items = window.AUDIT_ITEMS || [];
+        let currentIndex = 0;
+        let auditResults = {};
+
+        // 从 LocalStorage 恢复已有评审进度
+        const saved = localStorage.getItem("ETHNIC_AUDIT_RESULTS");
+        if (saved) {
+            try { auditResults = JSON.parse(saved); } catch(e){}
+        }
+
+        function init() {
+            if (!items.length) {
+                alert("未加载到待评审数据 (data.js)！");
+                return;
+            }
+            // 自动定位到第一个尚未评审的样本
+            const firstPending = items.findIndex(item => !auditResults[item.item_id]);
+            currentIndex = firstPending !== -1 ? firstPending : 0;
+            renderCurrent();
+            updateStats();
+        }
+
+        function renderCurrent() {
+            if (currentIndex < 0) currentIndex = 0;
+            if (currentIndex >= items.length) currentIndex = items.length - 1;
+
+            const item = items[currentIndex];
+            const myDecision = auditResults[item.item_id];
+
+            // 渲染中央图片
+            const imgEl = document.getElementById("mainImage");
+            imgEl.src = "images/" + item.display_name;
+
+            // 渲染印章状态
+            const stamp = document.getElementById("stamp");
+            if (myDecision === "PASS") {
+                stamp.className = "image-stamp stamp-pass";
+                stamp.innerText = "合格 (PASS)";
+            } else if (myDecision === "FAIL") {
+                stamp.className = "image-stamp stamp-fail";
+                stamp.innerText = "不合格 (FAIL)";
+            } else {
+                stamp.className = "image-stamp";
+            }
+
+            // 渲染右侧信息
+            document.getElementById("infoIndex").innerText = `#${item.item_id} (第 ${currentIndex + 1} / ${items.length} 张)`;
+            document.getElementById("infoEthnicity").innerText = item.ethnicity;
+            document.getElementById("infoFilename").innerText = item.orig_filename;
+            
+            const myStatusEl = document.getElementById("infoMyStatus");
+            if (myDecision === "PASS") {
+                myStatusEl.innerHTML = `<span style="color:var(--success); font-weight:bold;">✅ 已标记：合格</span>`;
+            } else if (myDecision === "FAIL") {
+                myStatusEl.innerHTML = `<span style="color:var(--danger); font-weight:bold;">❌ 已标记：不合格</span>`;
+            } else {
+                myStatusEl.innerHTML = `<span style="color:var(--warning); font-weight:bold;">⏳ 待评审</span>`;
+            }
+
+            document.getElementById("infoVlmScore").innerText = item.vlm_score ? `${item.vlm_score} 分` : "-";
+            document.getElementById("infoVlmStatus").innerText = item.vlm_status || "-";
+            document.getElementById("infoVlmSummary").innerText = item.vlm_summary || "暂无缺陷诊断";
+
+            document.getElementById("jumpBox").innerText = `${currentIndex + 1} / ${items.length}`;
+        }
+
+        function decide(status) {
+            const item = items[currentIndex];
+            auditResults[item.item_id] = status;
+            localStorage.setItem("ETHNIC_AUDIT_RESULTS", JSON.stringify(auditResults));
+            updateStats();
+            renderCurrent();
+
+            // 自动跳下一张
+            if (currentIndex < items.length - 1) {
+                setTimeout(() => {
+                    currentIndex++;
+                    renderCurrent();
+                }, 120);
+            }
+        }
+
+        function nextItem() {
+            if (currentIndex < items.length - 1) {
+                currentIndex++;
+                renderCurrent();
+            }
+        }
+
+        function prevItem() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderCurrent();
+            }
+        }
+
+        function updateStats() {
+            const total = items.length;
+            let pass = 0, fail = 0;
+            for (let id in auditResults) {
+                if (auditResults[id] === "PASS") pass++;
+                else if (auditResults[id] === "FAIL") fail++;
+            }
+            const pending = total - (pass + fail);
+
+            document.getElementById("statTotal").innerText = `总进度: ${pass + fail} / ${total} (${((pass+fail)/total*100).toFixed(1)}%)`;
+            document.getElementById("statPass").innerText = `✅ 合格: ${pass}`;
+            document.getElementById("statFail").innerText = `❌ 不合格: ${fail}`;
+            document.getElementById("statPending").innerText = `⏳ 待评审: ${pending}`;
+        }
+
+        function exportResults() {
+            const rows = [
+                ["item_id", "ethnicity", "filename", "human_status", "vlm_status", "vlm_score", "vlm_summary", "audited_at"]
+            ];
+            const now = new Date().toISOString();
+            items.forEach(it => {
+                const dec = auditResults[it.item_id] || "PENDING";
+                rows.push([
+                    it.item_id,
+                    it.ethnicity,
+                    it.orig_filename,
+                    dec,
+                    it.vlm_status || "",
+                    it.vlm_score || "",
+                    `"${(it.vlm_summary || '').replace(/"/g, '""')}"`,
+                    now
+                ]);
+            });
+
+            const csvContent = "\uFEFF" + rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `民族服饰图像质量人工评审清单_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function showHelp() {
+            document.getElementById("modalHelp").style.display = "flex";
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = "none";
+        }
+
+        // 快捷键支持
+        window.addEventListener("keydown", (e) => {
+            const key = e.key.toUpperCase();
+            if (key === "J" || key === "A" || key === "1") {
+                decide("PASS");
+            } else if (key === "K" || key === "D" || key === "2") {
+                decide("FAIL");
+            } else if (e.key === "ArrowRight") {
+                nextItem();
+            } else if (e.key === "ArrowLeft") {
+                prevItem();
+            }
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
