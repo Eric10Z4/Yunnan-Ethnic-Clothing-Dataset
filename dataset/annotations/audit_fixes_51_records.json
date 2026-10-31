@@ -1,0 +1,434 @@
+[
+  {
+    "image_id": "0004",
+    "filename": "images/train/0004.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'black and white patterned headdress with silver ornaments'"
+  },
+  {
+    "image_id": "0045",
+    "filename": "images/train/0045.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'a wrapped white turban'"
+  },
+  {
+    "image_id": "0083",
+    "filename": "images/train/0083.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'traditional Bai ethnic headdress paired with a blue patterned scarf'"
+  },
+  {
+    "image_id": "0215",
+    "filename": "images/train/0215.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'maroon wrap skirt with circular medallion patterns'"
+  },
+  {
+    "image_id": "0216",
+    "filename": "images/train/0216.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'light green patterned long wrap skirt paired with a golden sequined sash draped over the shoulder'"
+  },
+  {
+    "image_id": "0218",
+    "filename": "images/train/0218.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'vibrant pink wrap skirt featuring horizontal striped patterns in shades of pink, purple, and dark red'"
+  },
+  {
+    "image_id": "0240",
+    "filename": "images/train/0240.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'yellow long wrap skirt with subtle shimmering patterns'"
+  },
+  {
+    "image_id": "0381",
+    "filename": "images/train/0381.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'An elaborate Miao silver headdress featuring floral and bird motifs with hanging embossed silver ribbons.'"
+  },
+  {
+    "image_id": "0392",
+    "filename": "images/train/0392.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'An elaborate Miao ethnic silver headdress featuring intricate repoussé patterns, floral motifs on top, figural scenes, and hanging pendants along the bottom rim.'"
+  },
+  {
+    "image_id": "0411",
+    "filename": "images/train/0411.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'Traditional Miao finely pleated short skirt in dark grey or black, featuring an ornate embroidered waistband and side ties.'"
+  },
+  {
+    "image_id": "0414",
+    "filename": "images/train/0414.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'Miao silver headdress featuring a large fan-shaped backplate and floral crown base'"
+  },
+  {
+    "image_id": "0449",
+    "filename": "images/train/0449.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'large ornate silver Miao headdress with fringe and silver accessories'"
+  },
+  {
+    "image_id": "0459",
+    "filename": "images/train/0459.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'intricate traditional Miao silver crown headdress paired with a large silver neck ring adorned with engraved patterns and hanging pendants'"
+  },
+  {
+    "image_id": "0528",
+    "filename": "images/train/0528.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "unknown",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'black Naxi headwear with colorful hair wraps'"
+  },
+  {
+    "image_id": "0547",
+    "filename": "images/train/0547.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "embroidered hat",
+    "new_value": "unknown",
+    "reason": "Fixed invalid bottom_garment_type 'embroidered hat' based on official description 'traditional Naxi sheepskin back cape featuring a black upper strap, white embroidered hanging panels with geometric patterns, circular colorful embroidered disk buttons, and a furry lower section'"
+  },
+  {
+    "image_id": "0557",
+    "filename": "images/train/0557.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'elaborate circular headdress with floral and metallic medallions'"
+  },
+  {
+    "image_id": "0567",
+    "filename": "images/train/0567.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "embroidered hat",
+    "new_value": "unknown",
+    "reason": "Fixed invalid bottom_garment_type 'embroidered hat' based on official description 'traditional Naxi sheepskin cape with embroidered shoulder straps and circular disc ornaments'"
+  },
+  {
+    "image_id": "0606",
+    "filename": "images/train/0606.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'multi-colored traditional Tibetan headdress with pompoms'"
+  },
+  {
+    "image_id": "0613",
+    "filename": "images/train/0613.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'green ornate Tibetan headdress with white floral ornament and long side tassels'"
+  },
+  {
+    "image_id": "0762",
+    "filename": "images/train/0762.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "unknown",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'black headwrap with red tassels'"
+  },
+  {
+    "image_id": "0764",
+    "filename": "images/train/0764.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'silver headdress'"
+  },
+  {
+    "image_id": "1043",
+    "filename": "images/train/1043.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'silver and red headdress with ornaments and horns'"
+  },
+  {
+    "image_id": "1043",
+    "filename": "images/train/1043.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "front-opening",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'front-opening' based on official description 'yellow skirt with colorful horizontal bands at the hem and an embroidered front apron'"
+  },
+  {
+    "image_id": "1065",
+    "filename": "images/train/1065.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'an elaborate ethnic silver-ornamented headdress with red horns and dangling bead fringes'"
+  },
+  {
+    "image_id": "1108",
+    "filename": "images/val/1108.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'long purple wrap skirt with geometric patterns and side tie'"
+  },
+  {
+    "image_id": "1109",
+    "filename": "images/val/1109.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long green Dai ethnic wrap skirt featuring intricate diamond lattice patterns and horizontal striped bands near the hem'"
+  },
+  {
+    "image_id": "1110",
+    "filename": "images/val/1110.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long Dai ethnic wrap skirt with a green upper section and an orange-brown lower section adorned with geometric rhombus and chevron embroidery patterns'"
+  },
+  {
+    "image_id": "1111",
+    "filename": "images/val/1111.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long Dai ethnic wrap skirt in purple, black, and blue, heavily decorated with colorful geometric rhombus and cross-stitch embroidery motifs along with hanging ties'"
+  },
+  {
+    "image_id": "1124",
+    "filename": "images/val/1124.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'structured white and blue headdress with embroidered patterns'"
+  },
+  {
+    "image_id": "1126",
+    "filename": "images/val/1126.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a light-colored wrap-around skirt secured with a brown fringed belt'"
+  },
+  {
+    "image_id": "1133",
+    "filename": "images/val/1133.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'colorful pom-pom headdress'"
+  },
+  {
+    "image_id": "1133",
+    "filename": "images/val/1133.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'red patterned wrap skirt'"
+  },
+  {
+    "image_id": "1134",
+    "filename": "images/val/1134.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'striped red and white headdress'"
+  },
+  {
+    "image_id": "1134",
+    "filename": "images/val/1134.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'red and black patterned wrap skirt'"
+  },
+  {
+    "image_id": "1140",
+    "filename": "images/val/1140.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'elaborate red headdress with hanging tassels'"
+  },
+  {
+    "image_id": "1167",
+    "filename": "images/val/1167.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "front-opening",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'front-opening' based on official description 'light blue skirt with an embroidered front apron panel featuring silver embellishments'"
+  },
+  {
+    "image_id": "1173",
+    "filename": "images/val/1173.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "unknown",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'elaborate headwear with a hair wrap, pink flower decorations, and white beads'"
+  },
+  {
+    "image_id": "1185",
+    "filename": "images/val/1185.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'embroidered headdress'"
+  },
+  {
+    "image_id": "1203",
+    "filename": "images/val/1203.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'traditional Tibetan headdress with braids and bead ornaments'"
+  },
+  {
+    "image_id": "1209",
+    "filename": "images/val/1209.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'tall traditional Tibetan headdress with beaded tassels'"
+  },
+  {
+    "image_id": "1216",
+    "filename": "images/val/1216.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'elaborate Tibetan headdress featuring rows of coral beads, pearls, and metallic ornaments'"
+  },
+  {
+    "image_id": "1223",
+    "filename": "images/val/1223.jpg",
+    "field": "headwear_details.type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "unknown",
+    "reason": "Fixed invalid headwear_type 'side-buttoned (right-lapel)' based on official description 'black headwrap'"
+  },
+  {
+    "image_id": "1265",
+    "filename": "images/val/1265.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'elaborate silver headdress with dangling fringes and silver ornamentation'"
+  },
+  {
+    "image_id": "1306",
+    "filename": "images/test/1306.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "robe/dress",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long white and blue tie-dye dress with ruffled hem and side ruffles'"
+  },
+  {
+    "image_id": "1319",
+    "filename": "images/test/1319.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long wrap skirt with a dark red upper band, dark blue patterned body, and geometric patterned borders at the hem, paired with a metal waist chain'"
+  },
+  {
+    "image_id": "1321",
+    "filename": "images/test/1321.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'a long light green patterned wrap skirt paired with a gold decorative sash draped over the shoulder'"
+  },
+  {
+    "image_id": "1348",
+    "filename": "images/test/1348.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'elaborate silver headdress with dangling fringes and ornaments'"
+  },
+  {
+    "image_id": "1371",
+    "filename": "images/test/1371.jpg",
+    "field": "bottom_structure.garment_type",
+    "old_value": "side-buttoned (right-lapel)",
+    "new_value": "pleated skirt",
+    "reason": "Fixed invalid bottom_garment_type 'side-buttoned (right-lapel)' based on official description 'pleated blue and white skirt featuring woven geometric and red accent patterns with side ties'"
+  },
+  {
+    "image_id": "1376",
+    "filename": "images/test/1376.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'An elaborate silver Miao headdress featuring intricate floral motifs and hanging fringe pendants along the brim.'"
+  },
+  {
+    "image_id": "1384",
+    "filename": "images/test/1384.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'Miao elaborate silver headdress crown with dangling fringes and silver hair ornaments'"
+  },
+  {
+    "image_id": "1395",
+    "filename": "images/test/1395.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'Miao silver ornamental hairpiece or headdress featuring filigree loops and embossed base.'"
+  },
+  {
+    "image_id": "1450",
+    "filename": "images/test/1450.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "turban/headscarf",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'colorful ethnic headdress with beaded ornaments'"
+  },
+  {
+    "image_id": "1456",
+    "filename": "images/test/1456.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'ornate silver headdress with multiple tiers and crest structure'"
+  },
+  {
+    "image_id": "1463",
+    "filename": "images/test/1463.jpg",
+    "field": "headwear_details.type",
+    "old_value": "robe/dress",
+    "new_value": "silver crown",
+    "reason": "Fixed invalid headwear_type 'robe/dress' based on official description 'silver headdress band with ornate patterns'"
+  }
+]

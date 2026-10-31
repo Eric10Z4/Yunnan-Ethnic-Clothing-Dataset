@@ -3,12 +3,12 @@
     "standing collar",
     "round collar",
     "cross collar",
+    "square collar",
     "v-neck",
     "collarless",
-    "unknown",
+    "strapless",
     "none",
-    "square collar",
-    "strapless"
+    "unknown"
   ],
   "opening_style": [
     "front-opening",
@@ -21,7 +21,8 @@
     "long sleeves",
     "short sleeves",
     "sleeveless",
-    "none"
+    "none",
+    "unknown"
   ],
   "bottom_garment_type": [
     "pleated skirt",
@@ -29,12 +30,14 @@
     "trousers",
     "robe/dress",
     "apron",
-    "none"
+    "none",
+    "unknown"
   ],
   "headwear_type": [
     "silver crown",
     "turban/headscarf",
     "embroidered hat",
-    "none"
+    "none",
+    "unknown"
   ]
 }

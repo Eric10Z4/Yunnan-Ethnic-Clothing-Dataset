@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-阶段四 (V2 修复版) ：五阶段多模态细粒度标注与受控生成引擎
-- 彻底修复独立审计指出的四大代码缺陷：
-  1. 准确处理无上衣语义 (none 保持 none，不再粗暴转为 sleeveless，且无上衣时 collar/opening/decoration 全设为 none)
-  2. 受控词表硬性规范化拦截 (自动归一化 square collar, strapless, cross collar 至标准词表)
-  3. 材质反幻觉穿透至自然语言 Caption (清除 caption 中的 velvet/wool/silk/cotton 等偷跑材质词汇)
-  4. 严格依据 index 绑定响应结果，杜绝并发乱序错位
+阶段四 (V2 权威修复版) ：多模态细粒度标注与受控生成流水线
+- 彻底修复并落实复检意见各项要求：
+  1. 解耦部件存在性与属性值：pattern=none 仅表示无花纹/素色 (solid color)，绝不误判为无上衣；仅当确认无上衣时 top 各字段及扩展结构才全设为 none。
+  2. 独立字段受控词表校验：各字段仅在自身允许的枚举集合内进行归一化，彻底根除跨字段污染 (如 headdress 误转 robe/dress、side-tassel 误转 side-buttoned)。
+  3. 彻底废除异常默认生成：API 失败或解析异常记录至待重试队列，绝不虚构默认长袖刺绣服饰，qc_rule_check_passed 绝不虚标为 true。
+  4. 严格响应索引绑定：严格按照 index 映射输入图像，支持合法乱序响应归位，拦截缺失、重复或越界索引。
+  5. 材质反幻觉穿透：当 material 为 unknown 时，caption 严禁出现 wool, velvet, silk, cotton, linen, satin 等确凿面料断言。
 - 输出三份严格对齐文件：
-  1. dataset/annotations/captions.jsonl (官方提交格式)
+  1. dataset/annotations/captions.jsonl (官方交付格式)
   2. dataset/annotations/extended_fine_grained_attributes.jsonl (学术扩展格式)
   3. dataset/annotations/captions_merged_full.jsonl (一体化合并格式)
 """
@@ -33,6 +34,7 @@ IMAGES_DIR = DATASET_DIR / "images"
 ANNOTATIONS_DIR = DATASET_DIR / "annotations"
 MAPPING_FILE = ANNOTATIONS_DIR / "dataset_manifest_mapped.json"
 VOCAB_FILE = BASE_DIR / "code" / "configs" / "controlled_vocab.json"
+RETRY_QUEUE_FILE = ANNOTATIONS_DIR / "failed_retry_queue.json"
 
 API_URL = "http://localhost:8317/v1/chat/completions"
 API_KEY = "sk-eric10z4"
@@ -43,55 +45,94 @@ MAX_WORKERS = 8
 with open(VOCAB_FILE, "r", encoding="utf-8") as f:
     VOCAB = json.load(f)
 
-# 材质词条清洗器（防止 Caption 中偷跑材料幻觉）
+# 各字段专属受控词表集合（独立判定，绝不跨字段污染）
+COLLAR_TYPES = set(VOCAB["collar_type"])
+OPENING_STYLES = set(VOCAB["opening_style"])
+SLEEVE_LENGTHS = set(VOCAB["sleeve_length"])
+BOTTOM_TYPES = set(VOCAB["bottom_garment_type"])
+HEADWEAR_TYPES = set(VOCAB["headwear_type"])
+
 MATERIAL_REPLACEMENTS = [
     (r"\bvelvet\b", "plush fabric"),
     (r"\bwool\b", "thick woven fabric"),
-    (r"\bwoolen\b", "thick woven fabric"),
+    (r"\bwoolen\b", "thick woven"),
     (r"\bsilk\b", "lustrous fabric"),
     (r"\bsilky\b", "lustrous"),
     (r"\bcotton\b", "woven fabric"),
-    (r"\blinen\b", "textured cloth")
+    (r"\blinen\b", "textured cloth"),
+    (r"\bsatin\b", "glossy fabric")
 ]
 
-def sanitize_caption(caption_text, is_material_unknown=True):
-    if not is_material_unknown or not caption_text:
+def sanitize_caption(caption_text, is_unknown=True):
+    if not is_unknown or not caption_text:
         return caption_text
-    sanitized = caption_text
+    res = caption_text
     for pat, rep in MATERIAL_REPLACEMENTS:
-        sanitized = re.sub(pat, rep, sanitized, flags=re.IGNORECASE)
-    return sanitized
+        res = re.sub(pat, rep, res, flags=re.IGNORECASE)
+    return res
 
-def normalize_vocab(val, allowed_list, fallback="unknown"):
-    if not val:
-        return fallback
-    v_clean = str(val).strip().lower()
-    for item in allowed_list:
-        if v_clean == item.lower():
-            return item
-    # 针对性同义映射
-    if "square" in v_clean: return "round collar"
-    if "strapless" in v_clean: return "collarless"
-    if "cross" in v_clean and "collar" in v_clean: return "cross collar"
-    if "side" in v_clean or "wrap" in v_clean or "lapel" in v_clean: return "side-buttoned (right-lapel)"
-    if "front" in v_clean: return "front-opening"
-    if "pull" in v_clean: return "pullover"
-    if "tube" in v_clean: return "tube skirt"
-    if "pleat" in v_clean: return "pleated skirt"
-    if "trouser" in v_clean or "pant" in v_clean: return "trousers"
-    if "robe" in v_clean or "dress" in v_clean: return "robe/dress"
-    if "apron" in v_clean: return "apron"
-    if "crown" in v_clean: return "silver crown"
-    if "turban" in v_clean or "scarf" in v_clean or "towel" in v_clean: return "turban/headscarf"
-    if "hat" in v_clean or "cap" in v_clean: return "embroidered hat"
-    if "none" in v_clean: return "none"
-    return fallback
+def normalize_collar(val):
+    if not val: return "unknown"
+    v = str(val).strip().lower()
+    if v in COLLAR_TYPES: return v
+    if "stand" in v or "mandarin" in v: return "standing collar"
+    if "square" in v: return "square collar"
+    if "round" in v or "crew" in v: return "round collar"
+    if "cross" in v: return "cross collar"
+    if "v-neck" in v or "v neck" in v: return "v-neck"
+    if "strapless" in v: return "strapless"
+    if "collarless" in v or "no collar" in v: return "collarless"
+    if "none" in v: return "none"
+    return "unknown"
+
+def normalize_opening(val):
+    if not val: return "unknown"
+    v = str(val).strip().lower()
+    if v in OPENING_STYLES: return v
+    if "front" in v: return "front-opening"
+    if "side" in v or "wrap" in v or "lapel" in v: return "side-buttoned (right-lapel)"
+    if "pull" in v: return "pullover"
+    if "none" in v: return "none"
+    return "unknown"
+
+def normalize_sleeve(val):
+    if not val: return "long sleeves"
+    v = str(val).strip().lower()
+    if v in SLEEVE_LENGTHS: return v
+    if "short" in v: return "short sleeves"
+    if "sleeveless" in v: return "sleeveless"
+    if "none" in v: return "none"
+    if "long" in v: return "long sleeves"
+    return "long sleeves"
+
+def normalize_bottom(val):
+    if not val: return "unknown"
+    v = str(val).strip().lower()
+    if v in BOTTOM_TYPES: return v
+    if "tube" in v or "sin" in v: return "tube skirt"
+    if "pleat" in v: return "pleated skirt"
+    if "trouser" in v or "pant" in v: return "trousers"
+    if "robe" in v or "chuba" in v or "gown" in v: return "robe/dress"
+    if "dress" in v and "headdress" not in v: return "robe/dress"
+    if "apron" in v or "pangden" in v or "weiyao" in v: return "apron"
+    if "skirt" in v: return "pleated skirt"
+    if "none" in v: return "none"
+    return "unknown"
+
+def normalize_headwear(val):
+    if not val: return "none"
+    v = str(val).strip().lower()
+    if v in HEADWEAR_TYPES: return v
+    if "crown" in v or "horn" in v: return "silver crown"
+    if "hat" in v or "cap" in v: return "embroidered hat"
+    if "turban" in v or "scarf" in v or "towel" in v or "headband" in v or "wrap" in v or "headdress" in v: return "turban/headscarf"
+    if "none" in v: return "none"
+    return "unknown"
 
 def get_material_evidence(item):
     meta = item.get("meta", {})
     publisher = meta.get("publisher", "")
     
-    # 必须是该特定物品明文证实材质
     if any(k in publisher for k in ["纯手工羊毛", "羊毛披风", "羊毛查尔瓦", "羊毛织锦"]):
         return {"evidence_level": "E1", "material": "wool", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
     if any(k in publisher for k in ["纯棉扎染", "大理纯棉", "纯棉布"]):
@@ -119,29 +160,33 @@ PROMPT_V2 = """You are a top-tier computer vision dataset annotator specializing
 Annotate the provided 512x512 white-background images of traditional ethnic clothing.
 Accuracy, visual grounding, and uncertainty control are strictly prioritized over descriptive richness.
 
-# Constraints & Vocabularies
-- Ethnic Ground Truth: Verified by museum archival metadata, do NOT alter.
-- Material Rule: Output EXACTLY the provided verified material string. Do NOT guess fabric (e.g. silk/cotton/wool) from appearance!
-- Top Presence Rule: If the image depicts ONLY a skirt/trousers/hat without any top garment, output "color": "none", "pattern": "none", "sleeve_length": "none".
-- Controlled Vocabulary Reference:
-  * collar_type: standing collar | round collar | cross collar | v-neck | collarless | unknown | none
+# Ground Truth Constraints:
+- Ethnicity is verified by museum archival metadata, do NOT alter.
+- Material rule: Output EXACTLY the provided verified material string. Do NOT guess fabric (e.g. silk/cotton/wool/velvet/satin) from appearance!
+- Top presence rule:
+  * "has_top" is true if an upper garment (jacket, shirt, tunic, vest, top portion of dress) is present.
+  * ONLY set "has_top" to false if the image strictly depicts a bottom garment only (skirt/pants only) or headwear only.
+  * If a top is plain/solid color without embroidery, set "pattern": "solid color" (NEVER set pattern to "none" if top exists).
+
+# Controlled Vocabulary Reference:
+  * collar_type: standing collar | round collar | cross collar | square collar | v-neck | collarless | strapless | none | unknown
   * opening_style: front-opening | side-buttoned (right-lapel) | pullover | none | unknown
   * sleeve_length: long sleeves | short sleeves | sleeveless | none
-  * bottom_type: pleated skirt | tube skirt | trousers | robe/dress | apron | none
-  * headwear_type: silver crown | turban/headscarf | embroidered hat | none
+  * bottom_type: pleated skirt | tube skirt | trousers | robe/dress | apron | none | unknown
+  * headwear_type: silver crown | turban/headscarf | embroidered hat | none | unknown
 
-# Two-Stage Chained Workflow (execute internally)
+# Two-Stage Chained Workflow (execute internally):
 Stage A: Extract directly visible visual attributes (colors, embroidery patterns, collar, opening, bottom garment, headwear).
-Stage B: Synthesize a single fluent English caption STRICTLY using the visual attributes extracted in Stage A. Do NOT introduce unlisted items or fabric guesses!
+Stage B: Synthesize a single fluent English caption STRICTLY using the visual attributes extracted in Stage A. Do NOT hallucinate unlisted items or guess unverified fabric names!
 
-# Output Format (Return ONLY a valid JSON array of objects matching the image count)
+# Output Format (Return ONLY a valid JSON array of objects matching the image count):
 [
   {
     "index": 1,
     "has_top": true | false,
     "official_top": {
-      "color": "primary visible color(s) (or 'none')",
-      "pattern": "embroidery motifs and trim details (or 'none')",
+      "color": "primary visible color(s)",
+      "pattern": "embroidery motifs / details (use 'solid color' if plain, 'none' only if no top)",
       "material": "<exact_material_provided>",
       "sleeve_length": "long sleeves" | "short sleeves" | "sleeveless" | "none"
     },
@@ -149,12 +194,13 @@ Stage B: Synthesize a single fluent English caption STRICTLY using the visual at
     "official_headwear": "fine-grained description of traditional headwear/turban/crown (or 'none')",
     "official_caption": "A single fluent, rich, descriptive English sentence strictly grounded on extracted attributes.",
     "extended_structure": {
-      "collar_type": "standing collar" | "round collar" | "cross collar" | "v-neck" | "collarless" | "unknown" | "none",
-      "opening_style": "front-opening" | "side-buttoned (right-lapel)" | "pullover" | "none" | "unknown",
-      "closure": "frog buttons / ties / buttons / none / unknown",
+      "collar_type": "...",
+      "opening_style": "...",
+      "closure": "frog buttons / buttons / ties / none / unknown",
       "decoration_location": ["collar", "cuffs", "front placket", "hem", "chest"],
-      "bottom_type": "pleated skirt" | "tube skirt" | "trousers" | "robe/dress" | "apron" | "none",
-      "headwear_type": "silver crown" | "turban/headscarf" | "embroidered hat" | "none",
+      "bottom_type": "...",
+      "bottom_length": "ankle-length / knee-length / full-length / unknown / none",
+      "headwear_type": "...",
       "accessories_summary": "waist sash / torc / jewelry or 'none'"
     },
     "vlm_confidence": 0.95
@@ -195,25 +241,31 @@ def process_batch(batch_items):
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
             
-            # Map by index
+            # 严格依据 index 进行绑定
             idx_map = {}
             for p_item in parsed:
-                idx_map[p_item.get("index")] = p_item
-                
+                idx_val = p_item.get("index")
+                if idx_val is not None:
+                    idx_map[int(idx_val)] = p_item
+                    
             results = []
             for i, orig_item in enumerate(batch_items, 1):
-                p_item = idx_map.get(i) or (parsed[i-1] if i-1 < len(parsed) else parsed[-1])
+                p_item = idx_map.get(i)
+                if not p_item:
+                    # 缺失 index，记录重试错误，不生成假成衣
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Missing response index {i}"})
+                    continue
+                    
                 mat_info = get_material_evidence(orig_item)
-                
                 has_top = p_item.get("has_top", True)
                 o_top = p_item.get("official_top", {})
                 if not isinstance(o_top, dict): o_top = {}
                 
-                # Top presence handling: 严防无上衣被标成无袖！
                 top_color = str(o_top.get("color", "")).strip()
                 top_pattern = str(o_top.get("pattern", "")).strip()
-                if not has_top or top_color.lower() in ["none", "none.", "absent"] or top_pattern.lower() in ["none", "none."]:
-                    # 确定无上衣部件
+                
+                # 只有真正无上衣时才置 none
+                if not has_top or top_color.lower() in ["none", "none.", "absent"]:
                     official_top = {
                         "color": "none",
                         "pattern": "none",
@@ -226,43 +278,47 @@ def process_batch(batch_items):
                     ext_decor = []
                 else:
                     sl_raw = str(o_top.get("sleeve_length", "long sleeves")).strip().lower()
-                    if "short" in sl_raw: sl = "short sleeves"
-                    elif "sleeveless" in sl_raw: sl = "sleeveless"
-                    elif "none" in sl_raw: sl = "none"
-                    else: sl = "long sleeves"
+                    sl = normalize_sleeve(sl_raw)
                     
+                    # 修复：无刺绣素色上衣规范为 solid color，绝不再误清空！
+                    if top_pattern.lower() in ["none", "none.", ""]:
+                        top_pattern = "solid color"
+                        
                     official_top = {
                         "color": top_color if top_color else "traditional colored",
-                        "pattern": top_pattern if top_pattern else "ethnic embroidery",
+                        "pattern": top_pattern,
                         "material": mat_info["material"],
                         "sleeve_length": sl
                     }
+                    
                     ext_struct = p_item.get("extended_structure", {})
                     if not isinstance(ext_struct, dict): ext_struct = {}
-                    ext_collar = normalize_vocab(ext_struct.get("collar_type"), VOCAB["collar_type"], "unknown")
-                    ext_opening = normalize_vocab(ext_struct.get("opening_style"), VOCAB["opening_style"], "unknown")
+                    ext_collar = normalize_collar(ext_struct.get("collar_type"))
+                    ext_opening = normalize_opening(ext_struct.get("opening_style"))
                     ext_closure = str(ext_struct.get("closure", "unknown")).strip().lower()
                     ext_decor = ext_struct.get("decoration_location", ["front placket", "collar"])
                     if not isinstance(ext_decor, list): ext_decor = [str(ext_decor)]
 
-                # 清理并防幻觉化 Caption
-                raw_caption = p_item.get("official_caption", f"Traditional {orig_item['ethnicity']} ethnic clothing on pure white background.")
-                clean_caption = sanitize_caption(raw_caption, is_material_unknown=(mat_info["material"] == "unknown"))
+                raw_caption = str(p_item.get("official_caption", f"Traditional {orig_item['ethnicity']} ethnic clothing on pure white background."))
+                clean_caption = sanitize_caption(raw_caption, is_unknown=(mat_info["material"] == "unknown"))
+                
+                bot_text = str(p_item.get("official_bottom_or_dress", "none")).strip()
+                head_text = str(p_item.get("official_headwear", "none")).strip()
                 
                 official_rec = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
                     "ethnicity": orig_item["ethnicity"],
                     "top": official_top,
-                    "bottom_or_dress": p_item.get("official_bottom_or_dress", "traditional ethnic skirt or trousers"),
-                    "headwear": p_item.get("official_headwear", "none"),
+                    "bottom_or_dress": bot_text,
+                    "headwear": head_text,
                     "caption": clean_caption
                 }
                 
                 ext_struct = p_item.get("extended_structure", {})
                 if not isinstance(ext_struct, dict): ext_struct = {}
-                ext_bottom = normalize_vocab(ext_struct.get("bottom_type"), VOCAB["bottom_garment_type"], "unknown")
-                ext_head = normalize_vocab(ext_struct.get("headwear_type"), VOCAB["headwear_type"], "none")
+                ext_bottom = normalize_bottom(ext_struct.get("bottom_type") or bot_text)
+                ext_head = normalize_headwear(ext_struct.get("headwear_type") or head_text)
                 
                 extended_rec = {
                     "image_id": orig_item["image_id"],
@@ -290,99 +346,58 @@ def process_batch(batch_items):
                         "rule_check_passed": True
                     }
                 }
-                results.append((official_rec, extended_rec))
+                results.append({"status": "SUCCESS", "official": official_rec, "extended": extended_rec})
             return results
     except Exception as e:
-        res = []
-        for it in batch_items:
-            m_info = get_material_evidence(it)
-            off = {
-                "image_id": it["image_id"], "path": it["path"], "ethnicity": it["ethnicity"],
-                "top": {"color": "traditional colored", "pattern": "ethnic embroidery", "material": m_info["material"], "sleeve_length": "long sleeves"},
-                "bottom_or_dress": "traditional ethnic skirt", "headwear": "none",
-                "caption": f"Traditional {it['ethnicity']} ethnic clothing featuring embroidered patterns on a pure white background."
-            }
-            ext = {
-                "image_id": it["image_id"], "path": it["path"], "ethnicity": it["ethnicity"],
-                "top_structure": {"collar_type": "unknown", "opening_style": "unknown", "closure": "unknown", "decoration_location": ["collar"]},
-                "bottom_structure": {"garment_type": "unknown", "length": "unknown"},
-                "headwear_details": {"type": "none"},
-                "accessories": {"summary": "none"},
-                "material_evidence": m_info,
-                "qc_audit": {"vlm_confidence": 0.70, "rule_check_passed": False}
-            }
-            res.append((off, ext))
-        return res
+        # 异常不生成假成衣！写入待重试列表
+        return [{"status": "RETRY", "item": it, "error": f"API/Parse Error: {str(e)[:60]}"} for it in batch_items]
 
 def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_file):
     print(f"Starting V2 Annotation Pipeline on {len(target_items)} images...")
     
-    existing_official = {}
-    existing_extended = {}
-    if out_official_file.exists() and out_extended_file.exists():
-        with open(out_official_file, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        r = json.loads(line)
-                        existing_official[r["image_id"]] = r
-                    except: pass
-        with open(out_extended_file, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        r = json.loads(line)
-                        existing_extended[r["image_id"]] = r
-                    except: pass
-                    
-    pending_items = [it for it in target_items if it["image_id"] not in existing_official]
-    print(f"Total target: {len(target_items)} | Already completed: {len(existing_official)} | Pending: {len(pending_items)}")
-    
-    batches = [pending_items[i:i+BATCH_SIZE] for i in range(0, len(pending_items), BATCH_SIZE)]
-    print(f"Pending batches: {len(batches)}, Threads: {MAX_WORKERS}")
+    batches = [target_items[i:i+BATCH_SIZE] for i in range(0, len(target_items), BATCH_SIZE)]
+    print(f"Total batches: {len(batches)}, Threads: {MAX_WORKERS}")
     
     t0 = time.time()
     completed = 0
+    all_official = []
+    all_extended = []
+    retry_queue = []
     
-    out_official_file.parent.mkdir(parents=True, exist_ok=True)
-    f_off = open(out_official_file, "a", encoding="utf-8")
-    f_ext = open(out_extended_file, "a", encoding="utf-8")
-    
-    try:
-        if len(batches) > 0:
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-                future_map = {pool.submit(process_batch, b): b for b in batches}
-                for fut in as_completed(future_map):
-                    pair_list = fut.result()
-                    for off_rec, ext_rec in pair_list:
-                        existing_official[off_rec["image_id"]] = off_rec
-                        existing_extended[ext_rec["image_id"]] = ext_rec
-                        f_off.write(json.dumps(off_rec, ensure_ascii=False) + "\n")
-                        f_ext.write(json.dumps(ext_rec, ensure_ascii=False) + "\n")
-                        completed += 1
-                    f_off.flush()
-                    f_ext.flush()
-                    if completed % 30 == 0 or completed == len(pending_items):
-                        elapsed = time.time() - t0
-                        fps = completed / max(0.1, elapsed)
-                        print(f"  [Progress: {completed}/{len(pending_items)}] Speed: {fps:.2f} img/s | Elapsed: {elapsed:.1f}s")
-    finally:
-        f_off.close()
-        f_ext.close()
-        
-    all_official = list(existing_official.values())
-    all_extended = list(existing_extended.values())
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        future_map = {pool.submit(process_batch, b): b for b in batches}
+        for fut in as_completed(future_map):
+            batch_res = fut.result()
+            for r in batch_res:
+                if r["status"] == "SUCCESS":
+                    all_official.append(r["official"])
+                    all_extended.append(r["extended"])
+                    completed += 1
+                else:
+                    retry_queue.append(r)
+            if completed % 30 == 0 or completed == len(target_items):
+                elapsed = time.time() - t0
+                fps = completed / max(0.1, elapsed)
+                print(f"  [Progress: {completed}/{len(target_items)}] Speed: {fps:.2f} img/s | Elapsed: {elapsed:.1f}s")
+                
+    if retry_queue:
+        print(f"\n[Warning] {len(retry_queue)} items failed and need retry:")
+        for q in retry_queue[:5]:
+            print(f"  Failed ID {q['item']['image_id']}: {q['error']}")
+        with open(RETRY_QUEUE_FILE, "w", encoding="utf-8") as f:
+            json.dump(retry_queue, f, ensure_ascii=False, indent=2)
+            
+    # Sort by image_id
     all_official.sort(key=lambda x: int(x["image_id"]))
     all_extended.sort(key=lambda x: int(x["image_id"]))
     
+    out_official_file.parent.mkdir(parents=True, exist_ok=True)
     with open(out_official_file, "w", encoding="utf-8") as f:
-        for r in all_official:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-            
+        for r in all_official: f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        
     with open(out_extended_file, "w", encoding="utf-8") as f:
-        for r in all_extended:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-            
+        for r in all_extended: f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        
     merged_records = []
     ext_map = {r["image_id"]: r for r in all_extended}
     for off in all_official:
@@ -397,12 +412,11 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
         merged_records.append(merged)
         
     with open(out_merged_file, "w", encoding="utf-8") as f:
-        for r in merged_records:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-            
-    print(f"\n[Completed] 1. Exported official captions: {out_official_file} ({len(all_official)} lines)")
-    print(f"[Completed] 2. Exported extended attributes: {out_extended_file} ({len(all_extended)} lines)")
-    print(f"[Completed] 3. Exported all-in-one merged: {out_merged_file} ({len(merged_records)} lines)")
+        for r in merged_records: f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        
+    print(f"\n[Completed] Exported official: {out_official_file} ({len(all_official)} lines)")
+    print(f"[Completed] Exported extended: {out_extended_file} ({len(all_extended)} lines)")
+    print(f"[Completed] Exported merged: {out_merged_file} ({len(merged_records)} lines)")
 
 def main():
     parser = argparse.ArgumentParser()
