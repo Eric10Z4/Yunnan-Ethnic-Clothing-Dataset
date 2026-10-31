@@ -32,3 +32,6 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+# Allow report figures
+!report/figures/*.png
