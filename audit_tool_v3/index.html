@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云南民族服饰数据集 · 第二轮人工复核终审系统 (v3)</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --warning: #f57f17;
+            --bg: #f4f6f9;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: #333; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        header { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .header-title h1 { font-size: 17px; color: #111; display: flex; align-items: center; gap: 8px; }
+        .header-title p { font-size: 11px; color: #666; margin-top: 2px; }
+        .header-stats { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+        .stat-badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; }
+        .stat-total { background: #e3f2fd; color: #1565c0; }
+        .stat-ok { background: #e8f5e9; color: var(--success); }
+        .stat-ng { background: #ffebee; color: var(--danger); }
+        .stat-pending { background: #fff8e1; color: var(--warning); }
+        
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .btn { padding: 7px 14px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; font-weight: bold; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+        .btn:hover { background: #f5f5f5; }
+        .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+        .btn-success:hover { background: #1b5e20; }
+        
+        .workspace { flex: 1; display: flex; overflow: hidden; }
+        
+        .panel-guide { width: 320px; background: #fff; border-right: 1px solid var(--border); padding: 18px; overflow-y: auto; font-size: 12px; line-height: 1.6; }
+        .guide-section { margin-bottom: 18px; }
+        .guide-section h3 { font-size: 13px; margin-bottom: 8px; color: #111; border-left: 3px solid var(--primary); padding-left: 6px; }
+        .rule-card { padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; }
+        .rule-pass { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
+        .rule-fail { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        .rule-card strong { display: block; font-size: 12px; margin-bottom: 3px; }
+        .key { display: inline-block; padding: 2px 5px; background: #fff; border: 1px solid #bbb; border-radius: 4px; font-family: monospace; font-weight: bold; margin: 0 2px; color: #111; }
+        
+        .panel-viewer { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; position: relative; background: #eaedf2; overflow-y: auto; }
+        .image-container { width: 512px; height: 512px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .image-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        .image-stamp { position: absolute; top: 20px; right: 20px; padding: 8px 16px; border-radius: 8px; font-size: 16px; font-weight: 900; letter-spacing: 1px; transform: rotate(12deg); display: none; }
+        .stamp-pass { border: 3px solid var(--success); color: var(--success); background: rgba(255,255,255,0.95); display: block; }
+        .stamp-fail { border: 3px solid var(--danger); color: var(--danger); background: rgba(255,255,255,0.95); display: block; font-size: 14px; }
+        
+        .controls-container { width: 620px; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+        
+        .btn-pass-large { width: 100%; padding: 12px; background: var(--success); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 3px 8px rgba(46,125,50,0.3); display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s, background 0.2s; }
+        .btn-pass-large:hover { background: #1b5e20; }
+        .btn-pass-large:active { transform: scale(0.98); }
+        
+        .fail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .btn-fail-reason { padding: 9px 8px; border-radius: 6px; border: 1px solid #ffcdd2; background: #fff; color: #b71c1c; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.15s; }
+        .btn-fail-reason:hover { background: #ffebee; border-color: #ef9a9a; transform: translateY(-1px); }
+        .btn-fail-reason:active { transform: scale(0.98); }
+        
+        .shortcut-bar { font-size: 11px; color: #666; text-align: center; margin-top: 4px; }
+        
+        .panel-info { width: 310px; background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .info-header { padding: 14px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: bold; }
+        .info-body { padding: 14px; flex: 1; overflow-y: auto; font-size: 12px; }
+        .info-row { margin-bottom: 10px; }
+        .info-label { color: #888; font-size: 11px; margin-bottom: 2px; }
+        .info-val { font-weight: 600; color: #222; word-break: break-all; }
+        .vlm-box { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-top: 10px; }
+        .vlm-title { font-weight: bold; font-size: 12px; color: #444; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        
+        .info-nav { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+        .modal-card { background: #fff; border-radius: 10px; width: 420px; padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal-card h2 { font-size: 16px; margin-bottom: 10px; color: #111; }
+        .modal-card input { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 14px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1>🏛️ 云南民族服饰图像数据集 · 第二轮人工独立复审系统 (v3)</h1>
+            <p>计算机视觉期中大作业 | 阶段三：1,603 张初筛合格样本双盲独立交叉审核</p>
+        </div>
+        <div class="header-stats">
+            <span class="stat-badge stat-total" id="statTotal">总进度: 0 / 1603</span>
+            <span class="stat-badge stat-ok" id="statPass">✅ 合格: 0</span>
+            <span class="stat-badge stat-ng" id="statFail">❌ 不合格: 0</span>
+            <span class="stat-badge stat-pending" id="statPending">⏳ 待审: 1603</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn" onclick="jumpToNextPending()">🔍 跳至下一张待审</button>
+            <button class="btn btn-success" onclick="exportResults()">💾 导出第二轮复审清单</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="panel-guide">
+            <div class="guide-section">
+                <h3>📋 第二轮复审核心准则</h3>
+                <div class="rule-card rule-pass">
+                    <strong>✅ 【合格 (PASS)】必备准则：</strong>
+                    1. <strong>单主体</strong>：画面只有1位模特穿着或1件衣服挂展。<br>
+                    2. <strong>衣服为主</strong>：有充分的服装面积展示（全身/大半身）。<br>
+                    3. <strong>真实实拍</strong>：真实相机拍摄，非手绘插画/AI虚构。<br>
+                    4. <strong>白底干净</strong>：背景纯白无大块污斑与残渣。
+                </div>
+                <div class="rule-card rule-fail">
+                    <strong>❌ 【不合格】细分归因：</strong>
+                    • <strong>插画/手绘/3D</strong>：画出来的、二次元、AI绘画。<br>
+                    • <strong>纯脸特写/缺服饰</strong>：只有人脸大头照，无核心服饰。<br>
+                    • <strong>方形布料/桌布</strong>：桌布面料、布样布条、非成衣。<br>
+                    • <strong>现代便装/非民族</strong>：T恤牛仔裤卫衣、普通便服。<br>
+                    • <strong>多人合影</strong>：画面出现2人及以上合照。<br>
+                    • <strong>抠图破损/严重污斑</strong>：断头断手、严重黑灰杂色。<br>
+                    • <strong>其他原因</strong>：非以上原因的其它瑕疵。
+                </div>
+            </div>
+
+            <div class="guide-section">
+                <h3>⌨️ 全键盘极速盲操快捷键</h3>
+                <p><span class="key">J</span> / <span class="key">空格</span> / <span class="key">Enter</span> ：标记为 <strong>【合格】</strong> 并切下一张</p>
+                <p style="margin-top:6px;"><span class="key">1</span> ：插画/手绘/3D/AI生成</p>
+                <p style="margin-top:4px;"><span class="key">2</span> ：纯脸特写/缺乏服饰</p>
+                <p style="margin-top:4px;"><span class="key">3</span> ：方形布料/面料桌布</p>
+                <p style="margin-top:4px;"><span class="key">4</span> ：现代便装/非少数民族</p>
+                <p style="margin-top:4px;"><span class="key">5</span> ：多人合影/群演照片</p>
+                <p style="margin-top:4px;"><span class="key">6</span> ：抠图破损/严重污斑</p>
+                <p style="margin-top:4px;"><span class="key">7</span> ：其他原因 (支持填说明)</p>
+                <p style="margin-top:8px;"><span class="key">←</span> / <span class="key">→</span> ：上翻 / 下翻</p>
+            </div>
+        </div>
+
+        <div class="panel-viewer">
+            <div class="image-container" id="imageContainer">
+                <img id="mainImage" src="" alt="待评审服饰图像">
+                <div class="image-stamp" id="stamp"></div>
+            </div>
+
+            <div class="controls-container">
+                <button class="btn-pass-large" onclick="decidePass()">
+                    <span>✅ 合格 (PASS) [快捷键: J / 空格 / 回车]</span>
+                </button>
+
+                <div class="fail-grid">
+                    <button class="btn-fail-reason" onclick="decideFail('插画/手绘/3D/AI生成', 'NOT_REAL_PHOTO')">
+                        <span>🎨 [1] 插画/3D/AI绘图</span>
+                    </button>
+                    <button class="btn-fail-reason" onclick="decideFail('纯脸特写/缺乏服饰', 'FACE_ONLY_NO_CLOTHING')">
+                        <span>👤 [2] 纯脸特写/缺服饰</span>
+                    </button>
+                    <button class="btn-fail-reason" onclick="decideFail('方形布料/面料桌布', 'NOT_GARMENT')">
+                        <span>🧵 [3] 方形布料/桌布</span>
+                    </button>
+                    <button class="btn-fail-reason" onclick="decideFail('现代便装/非少数民族', 'INVALID_ETHNIC_COSTUME')">
+                        <span>👕 [4] 现代便装/非民族</span>
+                    </button>
+                    <button class="btn-fail-reason" onclick="decideFail('多人合影/群演照片', 'MULTI_PERSON')">
+                        <span>👥 [5] 多人合影照片</span>
+                    </button>
+                    <button class="btn-fail-reason" onclick="decideFail('抠图破损/严重污斑', 'BAD_SEGMENTATION')">
+                        <span>✂️ [6] 抠图破损/脏斑</span>
+                    </button>
+                </div>
+                
+                <button class="btn-fail-reason" style="width:100%; border-style:dashed;" onclick="promptOtherReason()">
+                    <span>❓ [7] 其他不合格原因 (点击输入具体描述)</span>
+                </button>
+
+                <div class="shortcut-bar">
+                    提示：评审数据实时保存在浏览器中，关闭或刷新页面不会丢失进度。全部审完后点击右上角导出清单。
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-info">
+            <div class="info-header">📌 样本元数据与初筛档案</div>
+            <div class="info-body">
+                <div class="info-row">
+                    <div class="info-label">样本序号 / 编号</div>
+                    <div class="info-val" id="infoIndex">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">所属民族 (Ethnicity)</div>
+                    <div class="info-val" id="infoEthnicity" style="color:var(--primary); font-size:15px;">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">文件名 (Filename)</div>
+                    <div class="info-val" id="infoFilename" style="font-family: monospace; font-size: 11px;">-</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">当前人工判定状态</div>
+                    <div class="info-val" id="infoMyDecision" style="font-size:14px;">⏳ 待评审</div>
+                </div>
+                <div class="info-row" id="rowFailReason" style="display:none;">
+                    <div class="info-label">不合格归因</div>
+                    <div class="info-val" id="infoFailReason" style="color:var(--danger); font-size:13px;">-</div>
+                </div>
+
+                <div class="vlm-box">
+                    <div class="vlm-title">
+                        <span>🤖 视觉模型初审状态</span>
+                        <span id="infoVlmScore" style="color:var(--primary); font-weight:bold;">-</span>
+                    </div>
+                    <div class="info-row" style="margin-bottom:0;">
+                        <div class="info-label">初审理由记录</div>
+                        <div class="info-val" id="infoVlmReason" style="font-size:11px; font-weight:normal; color:#555; line-height:1.4;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-nav">
+                <button class="btn" onclick="prevItem()">上一张 (←)</button>
+                <span id="jumpBox" style="font-size:12px; color:#666;">1 / 1603</span>
+                <button class="btn" onclick="nextItem()">下一张 (→)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modalOther">
+        <div class="modal-card">
+            <h2>❓ 请输入具体不合格原因</h2>
+            <input type="text" id="inputOtherReason" placeholder="例如：饰品严重反光模糊、反戴帽子等" value="其它瑕疵">
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('modalOther')">取消</button>
+                <button class="btn btn-success" onclick="confirmOtherReason()">确认提交 (FAIL)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        const items = window.AUDIT_ITEMS || [];
+        let currentIndex = 0;
+        let auditResults = {};
+
+        const STORAGE_KEY = "ETHNIC_AUDIT_V3_RESULTS";
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try { auditResults = JSON.parse(saved); } catch(e){}
+        }
+
+        function init() {
+            if (!items.length) {
+                alert("未加载到待评审数据 (data.js)！");
+                return;
+            }
+            const firstPending = items.findIndex(item => !auditResults[item.item_id]);
+            currentIndex = firstPending !== -1 ? firstPending : 0;
+            renderCurrent();
+            updateStats();
+        }
+
+        function renderCurrent() {
+            if (currentIndex < 0) currentIndex = 0;
+            if (currentIndex >= items.length) currentIndex = items.length - 1;
+
+            const item = items[currentIndex];
+            const myDecision = auditResults[item.item_id];
+
+            document.getElementById("mainImage").src = "images/" + item.display_name;
+
+            const stamp = document.getElementById("stamp");
+            const rowFail = document.getElementById("rowFailReason");
+            const infoMyDec = document.getElementById("infoMyDecision");
+
+            if (myDecision) {
+                if (myDecision.status === "PASS") {
+                    stamp.className = "image-stamp stamp-pass";
+                    stamp.innerText = "合格 (PASS)";
+                    infoMyDec.innerHTML = `<span style="color:var(--success); font-weight:bold;">✅ 合格 (PASS)</span>`;
+                    rowFail.style.display = "none";
+                } else {
+                    stamp.className = "image-stamp stamp-fail";
+                    stamp.innerText = `❌ ${myDecision.reason}`;
+                    infoMyDec.innerHTML = `<span style="color:var(--danger); font-weight:bold;">❌ 不合格 (FAIL)</span>`;
+                    rowFail.style.display = "block";
+                    document.getElementById("infoFailReason").innerText = `${myDecision.reason} (${myDecision.detail || myDecision.code})`;
+                }
+            } else {
+                stamp.className = "image-stamp";
+                infoMyDec.innerHTML = `<span style="color:var(--warning); font-weight:bold;">⏳ 待评审</span>`;
+                rowFail.style.display = "none";
+            }
+
+            document.getElementById("infoIndex").innerText = `#${item.item_id} (第 ${currentIndex + 1} / ${items.length} 张)`;
+            document.getElementById("infoEthnicity").innerText = item.ethnicity;
+            document.getElementById("infoFilename").innerText = item.orig_filename;
+            document.getElementById("infoVlmScore").innerText = item.vlm_score ? `${item.vlm_score} 分` : "-";
+            document.getElementById("infoVlmReason").innerText = item.vlm_reason || "-";
+            document.getElementById("jumpBox").innerText = `${currentIndex + 1} / ${items.length}`;
+        }
+
+        function decidePass() {
+            const item = items[currentIndex];
+            auditResults[item.item_id] = {
+                status: "PASS",
+                reason: "合格",
+                code: "NONE",
+                detail: ""
+            };
+            persistAndNext();
+        }
+
+        function decideFail(reason, code, detail="") {
+            const item = items[currentIndex];
+            auditResults[item.item_id] = {
+                status: "FAIL",
+                reason: reason,
+                code: code,
+                detail: detail
+            };
+            persistAndNext();
+        }
+
+        function promptOtherReason() {
+            document.getElementById("inputOtherReason").value = "";
+            document.getElementById("modalOther").style.display = "flex";
+            document.getElementById("inputOtherReason").focus();
+        }
+
+        function confirmOtherReason() {
+            const text = document.getElementById("inputOtherReason").value.trim() || "其它原因";
+            closeModal("modalOther");
+            decideFail("其他原因", "OTHER", text);
+        }
+
+        function persistAndNext() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(auditResults));
+            updateStats();
+            renderCurrent();
+            if (currentIndex < items.length - 1) {
+                setTimeout(() => {
+                    currentIndex++;
+                    renderCurrent();
+                }, 100);
+            }
+        }
+
+        function nextItem() {
+            if (currentIndex < items.length - 1) {
+                currentIndex++;
+                renderCurrent();
+            }
+        }
+
+        function prevItem() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderCurrent();
+            }
+        }
+
+        function jumpToNextPending() {
+            const nextIdx = items.findIndex((it, idx) => idx > currentIndex && !auditResults[it.item_id]);
+            if (nextIdx !== -1) {
+                currentIndex = nextIdx;
+                renderCurrent();
+            } else {
+                const anyIdx = items.findIndex(it => !auditResults[it.item_id]);
+                if (anyIdx !== -1) {
+                    currentIndex = anyIdx;
+                    renderCurrent();
+                } else {
+                    alert("🎉 恭喜！全部 1603 张图片均已复审完毕！");
+                }
+            }
+        }
+
+        function updateStats() {
+            const total = items.length;
+            let pass = 0, fail = 0;
+            for (let id in auditResults) {
+                if (auditResults[id].status === "PASS") pass++;
+                else if (auditResults[id].status === "FAIL") fail++;
+            }
+            const pending = total - (pass + fail);
+
+            document.getElementById("statTotal").innerText = `总进度: ${pass + fail} / ${total} (${((pass+fail)/total*100).toFixed(1)}%)`;
+            document.getElementById("statPass").innerText = `✅ 合格: ${pass}`;
+            document.getElementById("statFail").innerText = `❌ 不合格: ${fail}`;
+            document.getElementById("statPending").innerText = `⏳ 待审: ${pending}`;
+        }
+
+        function exportResults() {
+            const rows = [
+                ["item_id", "ethnicity", "filename", "human_decision", "fail_reason", "fail_code", "fail_detail", "vlm_score", "vlm_reason", "audited_at"]
+            ];
+            const now = new Date().toISOString();
+            items.forEach(it => {
+                const dec = auditResults[it.item_id];
+                if (dec) {
+                    rows.push([
+                        it.item_id,
+                        it.ethnicity,
+                        it.orig_filename,
+                        dec.status,
+                        dec.reason,
+                        dec.code,
+                        `"${(dec.detail || '').replace(/"/g, '""')}"`,
+                        it.vlm_score || "",
+                        `"${(it.vlm_reason || '').replace(/"/g, '""')}"`,
+                        now
+                    ]);
+                } else {
+                    rows.push([
+                        it.item_id,
+                        it.ethnicity,
+                        it.orig_filename,
+                        "PENDING",
+                        "",
+                        "",
+                        "",
+                        it.vlm_score || "",
+                        `"${(it.vlm_reason || '').replace(/"/g, '""')}"`,
+                        now
+                    ]);
+                }
+            });
+
+            const csvContent = "\uFEFF" + rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `民族服饰数据集第二轮复审清单_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = "none";
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (document.getElementById("modalOther").style.display === "flex") {
+                if (e.key === "Enter") confirmOtherReason();
+                if (e.key === "Escape") closeModal("modalOther");
+                return;
+            }
+
+            const key = e.key.toUpperCase();
+            if (key === "J" || e.code === "Space" || e.key === "Enter") {
+                e.preventDefault();
+                decidePass();
+            } else if (key === "1") {
+                decideFail('插画/手绘/3D/AI生成', 'NOT_REAL_PHOTO');
+            } else if (key === "2") {
+                decideFail('纯脸特写/缺乏服饰', 'FACE_ONLY_NO_CLOTHING');
+            } else if (key === "3") {
+                decideFail('方形布料/面料桌布', 'NOT_GARMENT');
+            } else if (key === "4") {
+                decideFail('现代便装/非少数民族', 'INVALID_ETHNIC_COSTUME');
+            } else if (key === "5") {
+                decideFail('多人合影/群演照片', 'MULTI_PERSON');
+            } else if (key === "6") {
+                decideFail('抠图破损/严重污斑', 'BAD_SEGMENTATION');
+            } else if (key === "7") {
+                promptOtherReason();
+            } else if (e.key === "ArrowRight") {
+                nextItem();
+            } else if (e.key === "ArrowLeft") {
+                prevItem();
+            }
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
