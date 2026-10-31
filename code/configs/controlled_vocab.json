@@ -1,0 +1,37 @@
+{
+  "collar_type": [
+    "standing collar",
+    "round collar",
+    "cross collar",
+    "v-neck",
+    "collarless",
+    "unknown"
+  ],
+  "opening_style": [
+    "front-opening",
+    "side-buttoned (right-lapel)",
+    "pullover",
+    "none",
+    "unknown"
+  ],
+  "sleeve_length": [
+    "long sleeves",
+    "short sleeves",
+    "sleeveless",
+    "none"
+  ],
+  "bottom_garment_type": [
+    "pleated skirt",
+    "tube skirt",
+    "trousers",
+    "robe/dress",
+    "apron",
+    "none"
+  ],
+  "headwear_type": [
+    "silver crown",
+    "turban/headscarf",
+    "embroidered hat",
+    "none"
+  ]
+}
