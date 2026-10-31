@@ -122,7 +122,7 @@ p2.font.color.rgb = RGBColor(174, 214, 241)
 p2.space_after = Pt(28)
 
 p3 = tf1.add_paragraph()
-p3.text = "汇报人：邹弘辉 (组长)  |  学号：20241120335  |  指导教师：朱锐\n培养单位：云南大学软件学院  |  课程：计算机视觉 (2026春季学期)"
+p3.text = "汇报人：邹弘辉 (组长)  |  学号：20241120335  |  指导教师：黄珊珊\n培养单位：云南大学软件学院  |  课程：计算机视觉 (2026春季学期)"
 p3.font.name = "Microsoft YaHei"
 p3.font.size = Pt(13)
 p3.font.color.rgb = RGBColor(220, 230, 245)
