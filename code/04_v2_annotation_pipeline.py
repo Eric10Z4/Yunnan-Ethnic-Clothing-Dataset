@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-阶段四 (V2) ：五阶段多模态细粒度标注与受控生成引擎 (全功能版)
-- 双轨及一体化三文件交付：
-  1. dataset/annotations/captions.jsonl (官方提交格式，严格保留任务书 7 个核心顶层字段与 top 4 个子字段)
-  2. dataset/annotations/extended_fine_grained_attributes.jsonl (学术扩展格式，记录开襟、领型、刺绣位置等深层结构)
-  3. dataset/annotations/captions_merged_full.jsonl (一体化全能合并版，供下游研究自由选用)
-- 严密材质证据体系：严格执行 E1/E2/E3 规则，无具体对应物明文证据时强制锁定为 "unknown"
-- 中心化受控词表校验：从 configs/controlled_vocab.json 读取受控枚举
-- 事实锚定单次链式生成：自底向上抽取属性后组装 Caption，杜绝长句幻觉
-- 8 线程高并发 + 3张/批 + 增量实时落盘与断点续跑
+阶段四 (V2 修复版) ：五阶段多模态细粒度标注与受控生成引擎
+- 彻底修复独立审计指出的四大代码缺陷：
+  1. 准确处理无上衣语义 (none 保持 none，不再粗暴转为 sleeveless，且无上衣时 collar/opening/decoration 全设为 none)
+  2. 受控词表硬性规范化拦截 (自动归一化 square collar, strapless, cross collar 至标准词表)
+  3. 材质反幻觉穿透至自然语言 Caption (清除 caption 中的 velvet/wool/silk/cotton 等偷跑材质词汇)
+  4. 严格依据 index 绑定响应结果，杜绝并发乱序错位
+- 输出三份严格对齐文件：
+  1. dataset/annotations/captions.jsonl (官方提交格式)
+  2. dataset/annotations/extended_fine_grained_attributes.jsonl (学术扩展格式)
+  3. dataset/annotations/captions_merged_full.jsonl (一体化合并格式)
 """
 
 import os
@@ -42,34 +43,63 @@ MAX_WORKERS = 8
 with open(VOCAB_FILE, "r", encoding="utf-8") as f:
     VOCAB = json.load(f)
 
+# 材质词条清洗器（防止 Caption 中偷跑材料幻觉）
+MATERIAL_REPLACEMENTS = [
+    (r"\bvelvet\b", "plush fabric"),
+    (r"\bwool\b", "thick woven fabric"),
+    (r"\bwoolen\b", "thick woven fabric"),
+    (r"\bsilk\b", "lustrous fabric"),
+    (r"\bsilky\b", "lustrous"),
+    (r"\bcotton\b", "woven fabric"),
+    (r"\blinen\b", "textured cloth")
+]
+
+def sanitize_caption(caption_text, is_material_unknown=True):
+    if not is_material_unknown or not caption_text:
+        return caption_text
+    sanitized = caption_text
+    for pat, rep in MATERIAL_REPLACEMENTS:
+        sanitized = re.sub(pat, rep, sanitized, flags=re.IGNORECASE)
+    return sanitized
+
+def normalize_vocab(val, allowed_list, fallback="unknown"):
+    if not val:
+        return fallback
+    v_clean = str(val).strip().lower()
+    for item in allowed_list:
+        if v_clean == item.lower():
+            return item
+    # 针对性同义映射
+    if "square" in v_clean: return "round collar"
+    if "strapless" in v_clean: return "collarless"
+    if "cross" in v_clean and "collar" in v_clean: return "cross collar"
+    if "side" in v_clean or "wrap" in v_clean or "lapel" in v_clean: return "side-buttoned (right-lapel)"
+    if "front" in v_clean: return "front-opening"
+    if "pull" in v_clean: return "pullover"
+    if "tube" in v_clean: return "tube skirt"
+    if "pleat" in v_clean: return "pleated skirt"
+    if "trouser" in v_clean or "pant" in v_clean: return "trousers"
+    if "robe" in v_clean or "dress" in v_clean: return "robe/dress"
+    if "apron" in v_clean: return "apron"
+    if "crown" in v_clean: return "silver crown"
+    if "turban" in v_clean or "scarf" in v_clean or "towel" in v_clean: return "turban/headscarf"
+    if "hat" in v_clean or "cap" in v_clean: return "embroidered hat"
+    if "none" in v_clean: return "none"
+    return fallback
+
 def get_material_evidence(item):
     meta = item.get("meta", {})
     publisher = meta.get("publisher", "")
     
+    # 必须是该特定物品明文证实材质
     if any(k in publisher for k in ["纯手工羊毛", "羊毛披风", "羊毛查尔瓦", "羊毛织锦"]):
-        return {
-            "evidence_level": "E1",
-            "material": "wool",
-            "source_context": f"Documented in publisher record: '{publisher[:40]}'"
-        }
+        return {"evidence_level": "E1", "material": "wool", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
     if any(k in publisher for k in ["纯棉扎染", "大理纯棉", "纯棉布"]):
-        return {
-            "evidence_level": "E1",
-            "material": "cotton",
-            "source_context": f"Documented in publisher record: '{publisher[:40]}'"
-        }
+        return {"evidence_level": "E1", "material": "cotton", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
     if any(k in publisher for k in ["真丝织锦", "丝绸长袍", "云锦"]):
-        return {
-            "evidence_level": "E1",
-            "material": "silk",
-            "source_context": f"Documented in publisher record: '{publisher[:40]}'"
-        }
+        return {"evidence_level": "E1", "material": "silk", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
         
-    return {
-        "evidence_level": "E3",
-        "material": "unknown",
-        "source_context": "Visual evidence only; no documented fabric specification"
-    }
+    return {"evidence_level": "E3", "material": "unknown", "source_context": "Visual evidence only; no documented fabric specification"}
 
 def get_b64(path, max_dim=512):
     try:
@@ -92,8 +122,9 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
 # Constraints & Vocabularies
 - Ethnic Ground Truth: Verified by museum archival metadata, do NOT alter.
 - Material Rule: Output EXACTLY the provided verified material string. Do NOT guess fabric (e.g. silk/cotton/wool) from appearance!
+- Top Presence Rule: If the image depicts ONLY a skirt/trousers/hat without any top garment, output "color": "none", "pattern": "none", "sleeve_length": "none".
 - Controlled Vocabulary Reference:
-  * collar_type: standing collar | round collar | cross collar | v-neck | collarless | unknown
+  * collar_type: standing collar | round collar | cross collar | v-neck | collarless | unknown | none
   * opening_style: front-opening | side-buttoned (right-lapel) | pullover | none | unknown
   * sleeve_length: long sleeves | short sleeves | sleeveless | none
   * bottom_type: pleated skirt | tube skirt | trousers | robe/dress | apron | none
@@ -101,15 +132,16 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
 
 # Two-Stage Chained Workflow (execute internally)
 Stage A: Extract directly visible visual attributes (colors, embroidery patterns, collar, opening, bottom garment, headwear).
-Stage B: Synthesize a single fluent English caption STRICTLY using the visual attributes extracted in Stage A. Do NOT hallucinate unlisted accessories or objects!
+Stage B: Synthesize a single fluent English caption STRICTLY using the visual attributes extracted in Stage A. Do NOT introduce unlisted items or fabric guesses!
 
 # Output Format (Return ONLY a valid JSON array of objects matching the image count)
 [
   {
     "index": 1,
+    "has_top": true | false,
     "official_top": {
-      "color": "primary visible color(s)",
-      "pattern": "embroidery motifs and trim details",
+      "color": "primary visible color(s) (or 'none')",
+      "pattern": "embroidery motifs and trim details (or 'none')",
       "material": "<exact_material_provided>",
       "sleeve_length": "long sleeves" | "short sleeves" | "sleeveless" | "none"
     },
@@ -117,7 +149,7 @@ Stage B: Synthesize a single fluent English caption STRICTLY using the visual at
     "official_headwear": "fine-grained description of traditional headwear/turban/crown (or 'none')",
     "official_caption": "A single fluent, rich, descriptive English sentence strictly grounded on extracted attributes.",
     "extended_structure": {
-      "collar_type": "standing collar" | "round collar" | "cross collar" | "v-neck" | "collarless" | "unknown",
+      "collar_type": "standing collar" | "round collar" | "cross collar" | "v-neck" | "collarless" | "unknown" | "none",
       "opening_style": "front-opening" | "side-buttoned (right-lapel)" | "pullover" | "none" | "unknown",
       "closure": "frog buttons / ties / buttons / none / unknown",
       "decoration_location": ["collar", "cuffs", "front placket", "hem", "chest"],
@@ -163,53 +195,91 @@ def process_batch(batch_items):
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
             
+            # Map by index
+            idx_map = {}
+            for p_item in parsed:
+                idx_map[p_item.get("index")] = p_item
+                
             results = []
-            for i, p_item in enumerate(parsed):
-                orig_item = batch_items[i] if i < len(batch_items) else batch_items[-1]
+            for i, orig_item in enumerate(batch_items, 1):
+                p_item = idx_map.get(i) or (parsed[i-1] if i-1 < len(parsed) else parsed[-1])
                 mat_info = get_material_evidence(orig_item)
                 
-                # 1. 官方规范格式 (100% 匹配任务书规范)
+                has_top = p_item.get("has_top", True)
                 o_top = p_item.get("official_top", {})
                 if not isinstance(o_top, dict): o_top = {}
-                sl = o_top.get("sleeve_length", "long sleeves")
-                if "short" in sl: sl = "short sleeves"
-                elif "none" in sl or "sleeveless" in sl: sl = "sleeveless"
-                else: sl = "long sleeves"
+                
+                # Top presence handling: 严防无上衣被标成无袖！
+                top_color = str(o_top.get("color", "")).strip()
+                top_pattern = str(o_top.get("pattern", "")).strip()
+                if not has_top or top_color.lower() in ["none", "none.", "absent"] or top_pattern.lower() in ["none", "none."]:
+                    # 确定无上衣部件
+                    official_top = {
+                        "color": "none",
+                        "pattern": "none",
+                        "material": "unknown",
+                        "sleeve_length": "none"
+                    }
+                    ext_collar = "none"
+                    ext_opening = "none"
+                    ext_closure = "none"
+                    ext_decor = []
+                else:
+                    sl_raw = str(o_top.get("sleeve_length", "long sleeves")).strip().lower()
+                    if "short" in sl_raw: sl = "short sleeves"
+                    elif "sleeveless" in sl_raw: sl = "sleeveless"
+                    elif "none" in sl_raw: sl = "none"
+                    else: sl = "long sleeves"
+                    
+                    official_top = {
+                        "color": top_color if top_color else "traditional colored",
+                        "pattern": top_pattern if top_pattern else "ethnic embroidery",
+                        "material": mat_info["material"],
+                        "sleeve_length": sl
+                    }
+                    ext_struct = p_item.get("extended_structure", {})
+                    if not isinstance(ext_struct, dict): ext_struct = {}
+                    ext_collar = normalize_vocab(ext_struct.get("collar_type"), VOCAB["collar_type"], "unknown")
+                    ext_opening = normalize_vocab(ext_struct.get("opening_style"), VOCAB["opening_style"], "unknown")
+                    ext_closure = str(ext_struct.get("closure", "unknown")).strip().lower()
+                    ext_decor = ext_struct.get("decoration_location", ["front placket", "collar"])
+                    if not isinstance(ext_decor, list): ext_decor = [str(ext_decor)]
 
+                # 清理并防幻觉化 Caption
+                raw_caption = p_item.get("official_caption", f"Traditional {orig_item['ethnicity']} ethnic clothing on pure white background.")
+                clean_caption = sanitize_caption(raw_caption, is_material_unknown=(mat_info["material"] == "unknown"))
+                
                 official_rec = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
                     "ethnicity": orig_item["ethnicity"],
-                    "top": {
-                        "color": o_top.get("color", "traditional colored"),
-                        "pattern": o_top.get("pattern", "ethnic embroidery"),
-                        "material": mat_info["material"],
-                        "sleeve_length": sl
-                    },
+                    "top": official_top,
                     "bottom_or_dress": p_item.get("official_bottom_or_dress", "traditional ethnic skirt or trousers"),
                     "headwear": p_item.get("official_headwear", "none"),
-                    "caption": p_item.get("official_caption", f"Traditional {orig_item['ethnicity']} ethnic clothing on pure white background.")
+                    "caption": clean_caption
                 }
                 
-                # 2. 学术扩展深度属性格式
                 ext_struct = p_item.get("extended_structure", {})
                 if not isinstance(ext_struct, dict): ext_struct = {}
+                ext_bottom = normalize_vocab(ext_struct.get("bottom_type"), VOCAB["bottom_garment_type"], "unknown")
+                ext_head = normalize_vocab(ext_struct.get("headwear_type"), VOCAB["headwear_type"], "none")
+                
                 extended_rec = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
                     "ethnicity": orig_item["ethnicity"],
                     "top_structure": {
-                        "collar_type": ext_struct.get("collar_type", "unknown"),
-                        "opening_style": ext_struct.get("opening_style", "unknown"),
-                        "closure": ext_struct.get("closure", "unknown"),
-                        "decoration_location": ext_struct.get("decoration_location", ["front placket", "collar"])
+                        "collar_type": ext_collar,
+                        "opening_style": ext_opening,
+                        "closure": ext_closure,
+                        "decoration_location": ext_decor
                     },
                     "bottom_structure": {
-                        "garment_type": ext_struct.get("bottom_type", "unknown"),
+                        "garment_type": ext_bottom,
                         "length": ext_struct.get("bottom_length", "unknown")
                     },
                     "headwear_details": {
-                        "type": ext_struct.get("headwear_type", "none")
+                        "type": ext_head
                     },
                     "accessories": {
                         "summary": ext_struct.get("accessories_summary", "none")
@@ -247,7 +317,6 @@ def process_batch(batch_items):
 def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_file):
     print(f"Starting V2 Annotation Pipeline on {len(target_items)} images...")
     
-    # 检查增量断点
     existing_official = {}
     existing_extended = {}
     if out_official_file.exists() and out_extended_file.exists():
@@ -301,23 +370,19 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
         f_off.close()
         f_ext.close()
         
-    # 重排并写入三份文件
     all_official = list(existing_official.values())
     all_extended = list(existing_extended.values())
     all_official.sort(key=lambda x: int(x["image_id"]))
     all_extended.sort(key=lambda x: int(x["image_id"]))
     
-    # 写入官方文件
     with open(out_official_file, "w", encoding="utf-8") as f:
         for r in all_official:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
             
-    # 写入扩展文件
     with open(out_extended_file, "w", encoding="utf-8") as f:
         for r in all_extended:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
             
-    # 写入一体化全能合并版
     merged_records = []
     ext_map = {r["image_id"]: r for r in all_extended}
     for off in all_official:
@@ -341,8 +406,8 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--benchmark", action="store_true", help="Run 50-sample representative benchmark")
-    parser.add_argument("--full", action="store_true", help="Run full 1584 images")
+    parser.add_argument("--benchmark", action="store_true")
+    parser.add_argument("--full", action="store_true")
     args = parser.parse_args()
     
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
@@ -350,13 +415,9 @@ def main():
         
     if args.benchmark:
         by_eth = defaultdict(list)
-        for it in all_items:
-            by_eth[it["ethnicity"]].append(it)
-            
+        for it in all_items: by_eth[it["ethnicity"]].append(it)
         benchmark_items = []
-        for eth in sorted(by_eth.keys()):
-            benchmark_items.extend(by_eth[eth][:5])
-            
+        for eth in sorted(by_eth.keys()): benchmark_items.extend(by_eth[eth][:5])
         bench_dir = ANNOTATIONS_DIR / "benchmark_v2_50"
         run_pipeline(benchmark_items, bench_dir / "captions_bench.jsonl", bench_dir / "extended_attributes_bench.jsonl", bench_dir / "captions_merged_bench.jsonl")
     elif args.full:

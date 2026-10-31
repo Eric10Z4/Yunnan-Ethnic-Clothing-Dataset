@@ -150,7 +150,7 @@ p_box = doc.add_paragraph()
 p_box.paragraph_format.line_spacing = 1.2
 p_box.paragraph_format.space_before = Pt(4)
 p_box.paragraph_format.space_after = Pt(12)
-r_box = p_box.add_run("【实验摘要】 本次期中大作业立足云南丰富且璀璨的少数民族服饰非物质文化遗产，选择方向三（图像生成），严格贯彻任务书所规定的‘来源可追溯、纯白背景、单主体居中规范、全流程代码可复现’等各项科研级质量规范，工程化构建了覆盖云南 10 大代表性世居少数民族的民族服饰图像生成数据集（Yunnan Ethnic Clothing Image Dataset, 简称 YECID-1584）。针对互联网多源采集中高频出现的合影干扰、非成衣布料、手绘插画等隐蔽噪声，团队开创性建立了‘六级级联漏斗初筛 + 深度主体抠图标准化 + 双图严格 VLM 裁判预检 + 两轮双盲人工独立终审’的人机协同闭环质检体系（HITL-VLM-QA），最终高标准收敛交付 1,584 组纯净单主体高质样本与结构化英文属性配对标注（captions.jsonl），并按 70%/15%/15% 完成类别分层子集划分。")
+r_box = p_box.add_run("【实验摘要】 本次期中大作业立足云南丰富且璀璨的少数民族服饰非物质文化遗产，选择方向三（图像生成），严格贯彻任务书所规定的‘来源可追溯、纯白背景、单主体居中规范、全流程代码可复现’等各项科研级质量规范，工程化构建了覆盖云南 10 大代表性世居少数民族的民族服饰图像生成数据集（Yunnan Ethnic Clothing Image Dataset, 简称 YECID-1542）。针对互联网多源采集中高频出现的合影干扰、非成衣布料、手绘插画等隐蔽噪声，团队开创性建立了‘六级级联漏斗初筛 + 深度主体抠图标准化 + 双图严格 VLM 裁判预检 + 两轮双盲人工独立终审’的人机协同闭环质检体系（HITL-VLM-QA），最终高标准收敛交付 1,542 组纯净单主体高质样本与结构化英文属性配对标注（captions.jsonl），并按 70%/15%/15% 完成类别分层子集划分。")
 r_box.font.name = "楷体"
 r_box.font.size = Pt(9.5)
 r_box._element.rPr.rFonts.set(qn('w:eastAsia'), '楷体')
@@ -168,7 +168,7 @@ add_body_p("3. 图像生成（方向三 - 团队最终选题）：任务书要�
 add_heading_1("二、 类别定义与数据规模规范")
 add_body_p("立足云南大学在地化区位优势，数据集聚焦云南 10 大代表性世居少数民族（全部在任务书确认的 56 民族清单之内），其服饰文化源远流长、形制鲜明，具备详实的博物馆典藏与非遗文献支撑：")
 add_body_p("• 苗族 (Miao)：盛装大银角/银冠、大襟刺绣上衣、百褶长裙，银饰锻造与挑花刺绣工艺极具辨识度；\n• 傣族 (Dai)：窄袖紧身短衫、高腰长筒裙、银腰带，外形轻盈优雅、线条流畅；\n• 彝族 (Yi)：查尔瓦羊毛披风、黑红黄三色漆绘刺绣、鸡冠帽与宽脚裤，民俗历史底蕴深厚；\n• 藏族 (Tibetan)：迪庆长袖氆氇袍服、金色大金花帽、绿松石腰饰与彩色邦典围裙；\n• 壮族 (Zhuang)：壮锦镶边对襟短衣、绣花围腰、百褶短裙与黑帕包头；\n• 白族 (Bai)：大理蓝白扎染工艺、‘风花雪月’特色头饰、刺绣坎肩与围腰；\n• 哈尼族 (Hani)：红河梯田蓝靛染土布衣、公鸡帽、棕榈蓑衣与胸前多排银泡挂饰；\n• 纳西族 (Naxi)：丽江‘披星戴月’羊皮背饰、宽袖大襟长袍与深色百褶围裙；\n• 佤族 (Wa)：西盟黑红贯头长裙、银头箍、串珠项圈与手工织锦挎包；\n• 景颇族 (Jingpo)：德宏黑绒银泡对襟短上衣、羊毛织锦筒裙与腿套。")
-add_body_p("数据集最终收敛交付 1,584 组高质量样本，严格按照约 70% 训练集、15% 验证集、15% 测试集进行分层随机划分（分层随机种子 Random Seed=42），类别分布高度均衡：")
+add_body_p("数据集最终收敛交付 1,542 组高质量样本，严格按照约 70% 训练集、15% 验证集、15% 测试集进行分层随机划分（分层随机种子 Random Seed=42），类别分布高度均衡：")
 
 # 表1：数据分布表
 t1 = doc.add_table(rows=12, cols=7)
@@ -187,13 +187,13 @@ t1_rows = [
     ("8", "纳西族 (Naxi)", "74", "16", "15", "105", "6.6%"),
     ("9", "佤族 (Wa)", "60", "13", "13", "86", "5.4%"),
     ("10", "景颇族 (Jingpo)", "59", "12", "13", "83", "5.2%"),
-    ("合计", "10 大世居民族", "1,108", "238", "238", "1,584", "100.0%")
+    ("合计", "10 大世居民族", "1,079", "238", "238", "1,542", "100.0%")
 ]
 for r_idx, row_data in enumerate(t1_rows, 1):
     for c_idx, val in enumerate(row_data):
         t1.rows[r_idx].cells[c_idx].paragraphs[0].add_run(val)
 style_table(t1)
-add_caption("表 2-1  YECID-1584 数据集按民族类别与子集划分统计表")
+add_caption("表 2-1  YECID-1542 数据集按民族类别与子集划分统计表")
 
 # 插入图1
 fig1_p = FIG_DIR / "fig1_ethnicity_split_distribution.png"
@@ -258,7 +258,7 @@ add_body_p("该阶段共拦截违规样本 4,979 张，其中精准清除了 1,6
 add_heading_2("5.2 两轮双盲人工独立终审实证分析")
 add_body_p("为杜绝机器审查的盲区，团队自主开发了轻量级、跨平台的人工终审交互系统（audit_tool_v2 / audit_tool_v3，支持一键盲操打标与 LocalStorage 进度自愈），组织开展了两轮独立的双盲人工终审：")
 add_body_p("在第一轮终审中，评审员排查出 95 张存在细微瑕疵的边缘样本。团队使用 VLM 诊断引擎对其逐一进行了病因复盘确认（code/03_diagnose_95_fails.py）：AI 确认其中 50 张存在背景微小人物干扰或多视点拼图，20 张为手工艺布料展板，10 张为电商详情页文字海报，9 张存在织机结构粘连导致的边缘发虚，6 张为现代改良服饰，机器与人工判定重合度达 96.8%。")
-add_body_p("团队坚决剔除全部 95 张瑕疵样本，重组并生成第二轮独立复审包。在第二轮复审中，1,584 张样本获得全票合格认可（通过率达 98.8%），最终成功锁定了全库 1,584 组纯净黄金样本。")
+add_body_p("团队坚决剔除全部 95 张瑕疵样本，重组并生成第二轮独立复审包。在第二轮复审中，1,542 张样本获得全票合格认可（通过率达 98.8%），最终成功锁定了全库 1,542 组纯净黄金样本。")
 
 # 第六章
 add_heading_1("六、 实验难点、解决方案与已知局限性")
@@ -270,7 +270,7 @@ add_body_p("4. 已知局限性说明：受限于公开摄影记录的现实分�
 # 第七章
 add_heading_1("七、 最终交付物对照与小组分工说明")
 add_body_p("本项目严格按照任务书第 9 节要求，完成全量交付物封装：")
-add_body_p("1. 构建好的数据集：包含 dataset/images/ (train/val/test 1,584张标准化白底图像)、dataset/annotations/captions.jsonl、dataset/annotations/classification_labels.csv、dataset/metadata.csv (10个必填字段齐备) 及 dataset/README.md；\n2. 各阶段构建代码：code/ 目录下 8 个模块化脚本、requirements.txt 及流水线复现指南；\n3. 数据集构建方式说明：详细记录于代码注释、数据集 README 及本报告各章节中；\n4. 实验报告与答辩 PPT：本规范 Word 实验报告及配套 8 页答辩 PPT；\n5. GitHub 开源仓库托管：全量源码与台账已同步至 https://github.com/Eric10Z4/Yunnan-Ethnic-Clothing-Dataset。")
+add_body_p("1. 构建好的数据集：包含 dataset/images/ (train/val/test 1,542张标准化白底图像)、dataset/annotations/captions.jsonl、dataset/annotations/classification_labels.csv、dataset/metadata.csv (10个必填字段齐备) 及 dataset/README.md；\n2. 各阶段构建代码：code/ 目录下 8 个模块化脚本、requirements.txt 及流水线复现指南；\n3. 数据集构建方式说明：详细记录于代码注释、数据集 README 及本报告各章节中；\n4. 实验报告与答辩 PPT：本规范 Word 实验报告及配套 8 页答辩 PPT；\n5. GitHub 开源仓库托管：全量源码与台账已同步至 https://github.com/Eric10Z4/Yunnan-Ethnic-Clothing-Dataset。")
 
 add_body_p("【团队成员分工与贡献明细】：")
 

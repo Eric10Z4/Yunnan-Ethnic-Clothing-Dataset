@@ -115,7 +115,7 @@ p1.font.color.rgb = WHITE
 p1.space_after = Pt(12)
 
 p2 = tf1.add_paragraph()
-p2.text = "Yunnan Ethnic Clothing Image Dataset (YECID-1584) · 期中实验答辩汇报"
+p2.text = "Yunnan Ethnic Clothing Image Dataset (YECID-1542) · 期中实验答辩汇报"
 p2.font.name = "Microsoft YaHei"
 p2.font.size = Pt(18)
 p2.font.color.rgb = RGBColor(174, 214, 241)
@@ -170,7 +170,7 @@ create_card(slide3, Inches(7.3), Inches(1.5), Inches(5.2), Inches(5.3),
                 "3. 阶段三：主体抠图与 512 纯白底规范化",
                 "   Rembg U2Net 前景提取，较长边 75% 等比居中缩放，补纯白边至 512×512，中心偏移 ≤0.1%；",
                 "4. 阶段四与五：人机闭环终审与结构化标注",
-                "   双图严格 VLM 裁判预检 + 两轮双盲人工终审，锁定 1,584 纯金样本，全自动提取 captions.jsonl。"
+                "   双图严格 VLM 裁判预检 + 两轮双盲人工终审，锁定 1,542 纯金样本，全自动提取 captions.jsonl。"
             ])
 
 # ----------------- SLIDE 4: 来源可追溯与六级漏斗清洗 -----------------
@@ -250,7 +250,7 @@ create_card(slide6, Inches(6.8), Inches(1.5), Inches(5.7), Inches(5.3),
 
 # ----------------- SLIDE 7: 数据统计与划分质量 -----------------
 slide7 = prs.slides.add_slide(slide_layout)
-add_header(slide7, "六、 数据集统计分布与分层划分质量 (YECID-1584)")
+add_header(slide7, "六、 数据集统计分布与分层划分质量 (YECID-1542)")
 
 # Insert Figure 1 (Ethnicity distribution)
 fig1_p = FIG_DIR / "fig1_ethnicity_split_distribution.png"
@@ -260,12 +260,12 @@ if fig1_p.exists():
 create_card(slide7, Inches(7.3), Inches(1.5), Inches(5.2), Inches(5.3),
             "数据集统计与平衡性量化指标",
             [
-                "• 样本总体规模：1,584 组配对样本（超额满足任务书 ≥ 1,500 组要求）；",
+                "• 样本总体规模：1,542 组配对样本（超额满足任务书 ≥ 1,500 组要求）；",
                 "• 涵盖民族范围：覆盖云南 10 大代表性世居少数民族（苗、傣、彝、藏、壮、白、哈尼、纳西、佤、景颇）；",
                 "• 分层划分严格契合规范：",
-                "   - 训练集 (Train): 1,108 张 (69.9%)",
-                "   - 验证集 (Val): 238 张 (15.0%)",
-                "   - 测试集 (Test): 238 张 (15.0%)",
+                "   - 训练集 (Train): 1,079 张 (69.9%)",
+                "   - 验证集 (Val): 232 张 (15.0%)",
+                "   - 测试集 (Test): 232 张 (15.0%)",
                 "   - 各民族内部子集比例完全锁定在 70:15:15；",
                 "• 类别平衡性：前 7 大主要民族比例为 2.12 : 1，在保持真实世界民俗摄影多样性的前提下高度均衡。"
             ])

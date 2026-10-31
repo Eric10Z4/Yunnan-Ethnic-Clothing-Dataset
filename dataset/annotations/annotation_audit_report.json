@@ -1,10 +1,7 @@
 {
-  "total_official_records": 1584,
-  "total_extended_records": 1584,
-  "schema_conformity_rate": "100.00%",
-  "path_validity_rate": "100.00%",
-  "material_evidence_compliance_rate": "100.00%",
-  "vocab_conformity_rate": "100.00%",
-  "id_alignment_rate": "100.00%",
+  "status": "PASSED",
+  "total_records": 1542,
+  "exact_duplicates": 0,
+  "total_violations": 0,
   "violations": []
 }
