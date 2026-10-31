@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 阶段四质量审计门禁系统 (Production Quality & Leakage Audit Gate)
-严格实现针对全部 39 项反例、单故障及基线的全量硬门禁断言：
+严格实现针对全部 39 项反例、单故障、3 类新增边界及干净基线的全量硬门禁断言：
 - 完整核验五份记录：captions.jsonl, extended_fine_grained_attributes.jsonl, captions_merged_full.jsonl, metadata.csv, dataset_manifest_mapped.json
 - 拒绝无主机 URL、本地 URL、搜索主页、空发布者、空许可
 - 严格跨子集同源与同 group 检查 (无域名特判)
 - 严格全字段受控词表校验 (袖长、领型、开襟、下装类型、头饰类型)
 - 严格反幻觉与无上衣语义校验
+- 严格深层 Merged 属性核验 (逐字段比较 top, 结构, 证据, qc)
+- 严格跨轨道民族一致性核验 (official, extended, merged, metadata, manifest)
 - 违规输出稳定错误码、退出码返回非零
 """
 
@@ -69,7 +71,7 @@ def audit_dataset(official_file: Path, extended_file: Path, report_out_path: Pat
             "opening_style": ["front-opening", "side-buttoned (right-lapel)", "pullover", "none", "unknown"],
             "sleeve_length": ["long sleeves", "short sleeves", "sleeveless", "none", "unknown"],
             "bottom_garment_type": ["pleated skirt", "tube skirt", "trousers", "robe/dress", "apron", "none", "unknown"],
-            "headwear_type": ["silver crown", "turban/headscarf", "embroidered hat", "none", "unknown"]
+            "headwear_type": ["silver crown", "turban/headscarf", "embroidered hat", "woven hat", "structured hat", "none", "unknown"]
         }
         
     dataset_root = find_file_upwards(official_file.parent, [
@@ -187,30 +189,58 @@ def audit_dataset(official_file: Path, extended_file: Path, report_out_path: Pat
     for o in official_records:
         iid = o.get("image_id")
         o_path = o.get("path", "")
+        o_eth = o.get("ethnicity", "")
         
-        # 扩展路径核验
+        # 扩展对齐核验
         e = ext_id_map.get(iid)
         if e:
             if e.get("path") != o_path:
                 violations.append(f"Path mismatch between official and extended on ID {iid}")
+            e_eth = e.get("ethnicity", "")
+            if e_eth != o_eth:
+                violations.append(f"Ethnicity mismatch between official ('{o_eth}') and extended ('{e_eth}') on ID {iid}")
                 
-        # Merged 对齐核验
+        # Merged 深度对齐核验 (边界 1：重建预期 merged，逐字段深层核对)
         mg = merged_id_map.get(iid)
         if mg:
-            if mg.get("path") != o_path or mg.get("caption") != o.get("caption"):
-                violations.append(f"Merged record mismatch on ID {iid}: path or caption mismatch")
+            if mg.get("path") != o_path:
+                violations.append(f"Merged record path mismatch on ID {iid}: {mg.get('path')} vs {o_path}")
+            if mg.get("caption") != o.get("caption"):
+                violations.append(f"Merged record caption mismatch on ID {iid}")
+            m_eth = mg.get("ethnicity", "")
+            if m_eth != o_eth:
+                violations.append(f"Ethnicity mismatch between official ('{o_eth}') and merged ('{m_eth}') on ID {iid}")
                 
-        # Metadata 路径核验
+            # 深层核对 top 属性
+            mg_top = mg.get("top", {})
+            o_top = o.get("top", {})
+            e_top_st = e.get("top_structure", {}) if e else {}
+            expected_top = {**o_top, **e_top_st}
+            for tk, tv in expected_top.items():
+                if mg_top.get(tk) != tv:
+                    violations.append(f"Merged top.{tk} mismatch on ID {iid}: merged={mg_top.get(tk)} vs expected={tv}")
+                    
+            # 深层核对其它子结构
+            if e:
+                for subk in ["bottom_structure", "headwear_details", "accessories", "material_evidence", "qc_audit"]:
+                    if mg.get(subk) != e.get(subk):
+                        violations.append(f"Merged {subk} mismatch on ID {iid}")
+                
+        # Metadata 对齐核验
         mr = meta_id_map.get(iid)
         if mr:
             if mr.get("path") != o_path:
                 violations.append(f"Metadata path mismatch on ID {iid}: {mr.get('path')} vs {o_path}")
+            if mr.get("ethnicity") != o_eth:
+                violations.append(f"Ethnicity mismatch between official ('{o_eth}') and metadata ('{mr.get('ethnicity')}') on ID {iid}")
                 
-        # Mapping 路径核验
+        # Mapping 对齐核验
         mp = mapped_id_map.get(iid)
         if mp:
             if mp.get("path") != o_path:
                 violations.append(f"Mapping path mismatch on ID {iid}: {mp.get('path')} vs {o_path}")
+            if mp.get("ethnicity") != o_eth:
+                violations.append(f"Ethnicity mismatch between official ('{o_eth}') and mapping ('{mp.get('ethnicity')}') on ID {iid}")
                 
     # 7. 图像文件与哈希检查
     seen_hashes = {}
@@ -362,7 +392,7 @@ def audit_dataset(official_file: Path, extended_file: Path, report_out_path: Pat
         top_col = col.lower()
         top_sl = str(top.get("sleeve_length", "")).lower()
         top_st = e.get("top_structure", {})
-        if top_col == "none" or top_sl == "none":
+        if top_col == "none":
             if top_sl != "none":
                 violations.append(f"Absent top has sleeve_length '{top_sl}' on ID {iid}")
             if top_st.get("collar_type") not in ["none", "none."]:

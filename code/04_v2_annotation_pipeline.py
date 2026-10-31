@@ -9,6 +9,7 @@
   4. 严格响应索引绑定：拦截重复 index、越界 index、缺失 index
   5. 材质反幻觉穿透至 Caption (清除 velvet/wool/silk/cotton/linen/satin)
   6. 成功重试后持久化重试队列自动清除成功 ID
+  7. 收紧归一化规则：无百褶证据不归百褶裙、无类型证据不归头帕、无刺绣证据不归刺绣帽、无袖长证据不归长袖
 """
 
 import os
@@ -92,14 +93,14 @@ def normalize_opening(val):
     return "unknown"
 
 def normalize_sleeve(val):
-    if not val: return "long sleeves"
+    if not val: return "unknown"
     v = str(val).strip().lower()
     if v in SLEEVE_LENGTHS: return v
     if "short" in v: return "short sleeves"
     if "sleeveless" in v: return "sleeveless"
     if "none" in v: return "none"
     if "long" in v: return "long sleeves"
-    return "long sleeves"
+    return "unknown"
 
 def normalize_bottom(val):
     if not val: return "unknown"
@@ -111,7 +112,6 @@ def normalize_bottom(val):
     if "robe" in v or "chuba" in v or "gown" in v: return "robe/dress"
     if "dress" in v and "headdress" not in v: return "robe/dress"
     if "apron" in v or "pangden" in v or "weiyao" in v: return "apron"
-    if "skirt" in v: return "pleated skirt"
     if "none" in v: return "none"
     return "unknown"
 
@@ -119,9 +119,11 @@ def normalize_headwear(val):
     if not val: return "none"
     v = str(val).strip().lower()
     if v in HEADWEAR_TYPES: return v
-    if "crown" in v or "horn" in v: return "silver crown"
-    if "hat" in v or "cap" in v: return "embroidered hat"
-    if "turban" in v or "scarf" in v or "towel" in v or "headband" in v or "wrap" in v or "headdress" in v: return "turban/headscarf"
+    if "crown" in v or "horn" in v or ("silver" in v and ("tiara" in v or "coronet" in v)): return "silver crown"
+    if "woven" in v or "bamboo" in v or "straw" in v: return "woven hat"
+    if "structured" in v: return "structured hat"
+    if "embroider" in v and ("hat" in v or "cap" in v): return "embroidered hat"
+    if "turban" in v or "scarf" in v or "towel" in v or "headband" in v or "wrap" in v: return "turban/headscarf"
     if "none" in v: return "none"
     return "unknown"
 
@@ -161,7 +163,7 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
 - Material rule: Output EXACTLY the provided verified material string. Do NOT guess fabric (e.g. silk/cotton/wool/velvet/satin) from appearance!
 - Top presence rule:
   * "has_top" is true if an upper garment (jacket, shirt, tunic, vest, top portion of dress) is present.
-  * ONLY set "has_top" to false if the image strictly depicts a bottom garment only (skirt/pants only) or headwear only.
+  * ONLY set "has_top" to false if the image strictly depicts a bottom garment only (skirt/pants only) or headwear only or accessories only.
   * If a top is plain/solid color without embroidery, set "pattern": "solid color" (NEVER set pattern to "none" if top exists).
 
 # Output Format (Return ONLY a valid JSON array of objects matching the image count):
@@ -173,7 +175,7 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
       "color": "primary visible color(s)",
       "pattern": "embroidery motifs / details (use 'solid color' if plain, 'none' only if no top)",
       "material": "<exact_material_provided>",
-      "sleeve_length": "long sleeves" | "short sleeves" | "sleeveless" | "none"
+      "sleeve_length": "long sleeves" | "short sleeves" | "sleeveless" | "unknown" | "none"
     },
     "official_bottom_or_dress": "fine-grained description of skirt/pants/dress/apron (or 'none')",
     "official_headwear": "fine-grained description of traditional headwear/turban/crown (or 'none')",
@@ -269,23 +271,35 @@ def process_batch(batch_items):
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing response index {i}"})
                     continue
                     
-                # 检查完整视觉字段 (missing_required_visual_fields)
-                if "official_top" not in p_item or "official_caption" not in p_item:
+                # 检查必需顶层字段
+                if "official_caption" not in p_item or not str(p_item.get("official_caption", "")).strip():
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Missing official_caption for index {i}"})
+                    continue
+                    
+                if "official_top" not in p_item:
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing required visual fields for index {i}"})
                     continue
                     
-                mat_info = get_material_evidence(orig_item)
-                has_top = p_item.get("has_top", True)
-                o_top = p_item.get("official_top", {})
+                o_top = p_item.get("official_top")
                 if not isinstance(o_top, dict):
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Invalid official_top object for index {i}"})
                     continue
                     
-                top_color = str(o_top.get("color", "")).strip()
-                top_pattern = str(o_top.get("pattern", "")).strip()
+                has_top = p_item.get("has_top")
+                # has_top 必须是显式布尔值，或者有可靠推断
+                if not isinstance(has_top, bool):
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Missing or invalid has_top boolean for index {i}"})
+                    continue
+                    
+                # 检查空字典 official_top: {}
+                if has_top and len(o_top) == 0:
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Empty official_top object for index {i}"})
+                    continue
+
+                mat_info = get_material_evidence(orig_item)
                 
                 # 只有真正无上衣时才置 none
-                if not has_top or top_color.lower() in ["none", "none.", "absent"]:
+                if not has_top:
                     official_top = {
                         "color": "none",
                         "pattern": "none",
@@ -297,14 +311,29 @@ def process_batch(batch_items):
                     ext_closure = "none"
                     ext_decor = []
                 else:
-                    sl_raw = str(o_top.get("sleeve_length", "long sleeves")).strip().lower()
-                    sl = normalize_sleeve(sl_raw)
+                    # has_top 为 True 时，必须提供 color, pattern, sleeve_length 且不能为空
+                    top_color = str(o_top.get("color", "")).strip()
+                    top_pattern = str(o_top.get("pattern", "")).strip()
+                    sl_raw = str(o_top.get("sleeve_length", "")).strip()
                     
-                    if top_pattern.lower() in ["none", "none.", ""]:
+                    if not top_color or top_color.lower() in ["none", "absent"]:
+                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top color for index {i}"})
+                        continue
+                        
+                    if not top_pattern:
+                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top pattern for index {i}"})
+                        continue
+                        
+                    if not sl_raw:
+                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top sleeve_length for index {i}"})
+                        continue
+                        
+                    sl = normalize_sleeve(sl_raw)
+                    if top_pattern.lower() in ["none", "none."]:
                         top_pattern = "solid color"
                         
                     official_top = {
-                        "color": top_color if top_color else "traditional colored",
+                        "color": top_color,
                         "pattern": top_pattern,
                         "material": mat_info["material"],
                         "sleeve_length": sl

@@ -4,6 +4,16 @@
 生产标注函数真实离线单元测试套件 (Production Pipeline Offline Unit Tests)
 直接 mock 网络响应并真实调用生产函数 process_batch 及 run_pipeline，
 不使用测试镜像字典断言。
+覆盖：
+1. pattern=none 规范为 solid color 且保留上衣
+2. 无上衣样本各字段为 none 且结构为 none
+3. 乱序响应基于 index 正确归位
+4. 缺失和重复 index 严格进入 RETRY
+5. 异常响应进入 RETRY 不产生假数据
+6. official_top 为空字典进入 RETRY
+7. official_top 为 null 或错误类型进入 RETRY
+8. official_top 缺必需属性进入 RETRY
+9. has_top 缺失或非布尔值进入 RETRY
 """
 
 import os
@@ -104,14 +114,12 @@ class TestProductionPipeline(unittest.TestCase):
 
     def test_04_missing_and_duplicate_index(self):
         """测试 4：真实调用 process_batch，验证缺失和重复 index 严格进入 RETRY"""
-        # 缺失 index 2
         payload_missing = json.dumps([make_rec(1), make_rec(3)])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload_missing)):
             out_missing = pipe.process_batch(test_items)
         self.assertEqual(out_missing[1]["status"], "RETRY")
         self.assertIn("Missing response index 2", out_missing[1]["error"])
         
-        # 重复 index 1
         payload_dup = json.dumps([make_rec(1, "red"), make_rec(1, "green"), make_rec(2), make_rec(3)])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload_dup)):
             out_dup = pipe.process_batch(test_items)
@@ -120,17 +128,65 @@ class TestProductionPipeline(unittest.TestCase):
 
     def test_05_api_error_and_incomplete_response(self):
         """测试 5：真实调用 process_batch，验证异常和不完整响应进入 RETRY，不产生假数据"""
-        # API 异常
         with patch.object(pipe.urllib.request, "urlopen", side_effect=TimeoutError("Connection timed out")):
             out_err = pipe.process_batch(test_items)
         self.assertTrue(all(x["status"] == "RETRY" for x in out_err))
         self.assertTrue(all("official" not in x for x in out_err))
         
-        # 缺少核心视觉字段
         incomplete_payload = json.dumps([{"index": i} for i in [1, 2, 3]])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(incomplete_payload)):
             out_inc = pipe.process_batch(test_items)
         self.assertTrue(all(x["status"] == "RETRY" for x in out_inc))
+
+    def test_06_empty_official_top(self):
+        """测试 6：真实调用 process_batch，验证 official_top: {} 必须进入 RETRY，不补齐默认事实"""
+        payload = json.dumps([
+            {"index": 1, "has_top": True, "official_top": {}, "official_caption": "A blue jacket."},
+            {"index": 2, "has_top": True, "official_top": {}, "official_caption": "A blue jacket."},
+            {"index": 3, "has_top": True, "official_top": {}, "official_caption": "A blue jacket."}
+        ])
+        with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
+            out = pipe.process_batch(test_items)
+        self.assertTrue(all(x["status"] == "RETRY" for x in out))
+        self.assertIn("Empty official_top", out[0]["error"])
+
+    def test_07_null_or_invalid_official_top(self):
+        """测试 7：真实调用 process_batch，验证 official_top 为 null 或非字典时进入 RETRY"""
+        payload = json.dumps([
+            {"index": 1, "has_top": True, "official_top": None, "official_caption": "A jacket."},
+            {"index": 2, "has_top": True, "official_top": "invalid string", "official_caption": "A jacket."},
+            {"index": 3, "has_top": True, "official_top": [1, 2, 3], "official_caption": "A jacket."}
+        ])
+        with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
+            out = pipe.process_batch(test_items)
+        self.assertTrue(all(x["status"] == "RETRY" for x in out))
+        self.assertIn("Invalid official_top object", out[0]["error"])
+
+    def test_08_missing_top_attributes(self):
+        """测试 8：真实调用 process_batch，验证缺必需属性 (color/pattern/sleeve) 时进入 RETRY"""
+        payload = json.dumps([
+            {"index": 1, "has_top": True, "official_top": {"pattern": "floral", "sleeve_length": "long sleeves"}, "official_caption": "A jacket."},
+            {"index": 2, "has_top": True, "official_top": {"color": "blue", "sleeve_length": "long sleeves"}, "official_caption": "A jacket."},
+            {"index": 3, "has_top": True, "official_top": {"color": "blue", "pattern": "floral"}, "official_caption": "A jacket."}
+        ])
+        with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
+            out = pipe.process_batch(test_items)
+        self.assertTrue(all(x["status"] == "RETRY" for x in out))
+        self.assertIn("Missing top color", out[0]["error"])
+        self.assertIn("Missing top pattern", out[1]["error"])
+        self.assertIn("Missing top sleeve_length", out[2]["error"])
+
+    def test_09_missing_or_invalid_has_top(self):
+        """测试 9：真实调用 process_batch，验证 has_top 缺失或非布尔值时进入 RETRY"""
+        payload = json.dumps([
+            {"index": 1, "official_top": {"color": "blue", "pattern": "solid", "sleeve_length": "long"}, "official_caption": "A jacket."},
+            {"index": 2, "has_top": "yes", "official_top": {"color": "blue", "pattern": "solid", "sleeve_length": "long"}, "official_caption": "A jacket."},
+            {"index": 3, "has_top": 1, "official_top": {"color": "blue", "pattern": "solid", "sleeve_length": "long"}, "official_caption": "A jacket."}
+        ])
+        with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
+            out = pipe.process_batch(test_items)
+        self.assertTrue(all(x["status"] == "RETRY" for x in out))
+        self.assertTrue(all("Missing or invalid has_top boolean" in x["error"] for x in out))
 
 if __name__ == "__main__":
     unittest.main()
