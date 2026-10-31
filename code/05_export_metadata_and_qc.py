@@ -72,11 +72,13 @@ def export_metadata():
             "ethnicity": item["ethnicity"],
             "garment_type": g_type,
             "split": item["split"],
-            "source_url": m.get("image_url") or m.get("source_page_url") or "https://cn.bing.com/images/search",
+            "source_url": m.get("image_url", ""),
             "publisher": m.get("publisher") or f"{item['ethnicity']} Ethnic Apparel Archives",
             "collected_at": m.get("collected_at") or "2026-10-28 22:30:00",
             "license": m.get("license") or "Web Published / Editorial Use",
-            "processing": PROCESSING_DESC
+            "processing": PROCESSING_DESC,
+            "source_page_url": m.get("source_page_url", ""),
+            "group_id": item.get("group_id", f"g{int(img_id):04d}")
         }
         meta_rows.append(row)
         
@@ -84,7 +86,8 @@ def export_metadata():
     
     fields = [
         "image_id", "path", "ethnicity", "garment_type", "split",
-        "source_url", "publisher", "collected_at", "license", "processing"
+        "source_url", "publisher", "collected_at", "license", "processing",
+        "source_page_url", "group_id"
     ]
     with open(METADATA_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)

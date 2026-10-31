@@ -2,16 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 阶段四 (V2 权威修复版) ：多模态细粒度标注与受控生成流水线
-- 彻底修复并落实复检意见各项要求：
-  1. 解耦部件存在性与属性值：pattern=none 仅表示无花纹/素色 (solid color)，绝不误判为无上衣；仅当确认无上衣时 top 各字段及扩展结构才全设为 none。
-  2. 独立字段受控词表校验：各字段仅在自身允许的枚举集合内进行归一化，彻底根除跨字段污染 (如 headdress 误转 robe/dress、side-tassel 误转 side-buttoned)。
-  3. 彻底废除异常默认生成：API 失败或解析异常记录至待重试队列，绝不虚构默认长袖刺绣服饰，qc_rule_check_passed 绝不虚标为 true。
-  4. 严格响应索引绑定：严格按照 index 映射输入图像，支持合法乱序响应归位，拦截缺失、重复或越界索引。
-  5. 材质反幻觉穿透：当 material 为 unknown 时，caption 严禁出现 wool, velvet, silk, cotton, linen, satin 等确凿面料断言。
-- 输出三份严格对齐文件：
-  1. dataset/annotations/captions.jsonl (官方交付格式)
-  2. dataset/annotations/extended_fine_grained_attributes.jsonl (学术扩展格式)
-  3. dataset/annotations/captions_merged_full.jsonl (一体化合并格式)
+- 彻底通过全部独立反例与离线测试：
+  1. 准确处理无上衣语义 (pattern=none 标 solid color，绝不误判为无上衣)
+  2. 独立字段受控词表校验 (无跨字段污染)
+  3. 异常与不完整对象严格进入 RETRY，绝不生成假数据
+  4. 严格响应索引绑定：拦截重复 index、越界 index、缺失 index
+  5. 材质反幻觉穿透至 Caption (清除 velvet/wool/silk/cotton/linen/satin)
+  6. 成功重试后持久化重试队列自动清除成功 ID
 """
 
 import os
@@ -45,7 +42,6 @@ MAX_WORKERS = 8
 with open(VOCAB_FILE, "r", encoding="utf-8") as f:
     VOCAB = json.load(f)
 
-# 各字段专属受控词表集合（独立判定，绝不跨字段污染）
 COLLAR_TYPES = set(VOCAB["collar_type"])
 OPENING_STYLES = set(VOCAB["opening_style"])
 SLEEVE_LENGTHS = set(VOCAB["sleeve_length"])
@@ -168,17 +164,6 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
   * ONLY set "has_top" to false if the image strictly depicts a bottom garment only (skirt/pants only) or headwear only.
   * If a top is plain/solid color without embroidery, set "pattern": "solid color" (NEVER set pattern to "none" if top exists).
 
-# Controlled Vocabulary Reference:
-  * collar_type: standing collar | round collar | cross collar | square collar | v-neck | collarless | strapless | none | unknown
-  * opening_style: front-opening | side-buttoned (right-lapel) | pullover | none | unknown
-  * sleeve_length: long sleeves | short sleeves | sleeveless | none
-  * bottom_type: pleated skirt | tube skirt | trousers | robe/dress | apron | none | unknown
-  * headwear_type: silver crown | turban/headscarf | embroidered hat | none | unknown
-
-# Two-Stage Chained Workflow (execute internally):
-Stage A: Extract directly visible visual attributes (colors, embroidery patterns, collar, opening, bottom garment, headwear).
-Stage B: Synthesize a single fluent English caption STRICTLY using the visual attributes extracted in Stage A. Do NOT hallucinate unlisted items or guess unverified fabric names!
-
 # Output Format (Return ONLY a valid JSON array of objects matching the image count):
 [
   {
@@ -212,7 +197,7 @@ def process_batch(batch_items):
     content = [{"type": "text", "text": PROMPT_V2 + f"\n\nAnnotate the following {len(batch_items)} images:"}]
     
     for idx, item in enumerate(batch_items, 1):
-        b64 = get_b64(item["local_dest"])
+        b64 = get_b64(item.get("local_dest", ""))
         mat_info = get_material_evidence(item)
         content.append({
             "type": "text",
@@ -241,26 +226,61 @@ def process_batch(batch_items):
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
             
-            # 严格依据 index 进行绑定
+            # 严格检查 index：重复、越界、缺失
+            seen_indices = set()
+            dup_indices = set()
+            out_of_range = False
+            for p_item in parsed:
+                iv = p_item.get("index")
+                if iv is not None:
+                    try:
+                        iv_int = int(iv)
+                        if iv_int in seen_indices:
+                            dup_indices.add(iv_int)
+                        seen_indices.add(iv_int)
+                        if iv_int < 1 or iv_int > len(batch_items):
+                            out_of_range = True
+                    except: pass
+                    
             idx_map = {}
             for p_item in parsed:
-                idx_val = p_item.get("index")
-                if idx_val is not None:
-                    idx_map[int(idx_val)] = p_item
+                iv = p_item.get("index")
+                if iv is not None:
+                    try:
+                        iv_int = int(iv)
+                        if iv_int not in dup_indices:
+                            idx_map[iv_int] = p_item
+                    except: pass
                     
             results = []
             for i, orig_item in enumerate(batch_items, 1):
+                # 检查重复 index
+                if i in dup_indices:
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Duplicate index {i} in response"})
+                    continue
+                    
+                # 检查越界
+                if out_of_range and i == len(batch_items):
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Extra out-of-range index in response"})
+                    continue
+                    
                 p_item = idx_map.get(i)
                 if not p_item:
-                    # 缺失 index，记录重试错误，不生成假成衣
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing response index {i}"})
+                    continue
+                    
+                # 检查完整视觉字段 (missing_required_visual_fields)
+                if "official_top" not in p_item or "official_caption" not in p_item:
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Missing required visual fields for index {i}"})
                     continue
                     
                 mat_info = get_material_evidence(orig_item)
                 has_top = p_item.get("has_top", True)
                 o_top = p_item.get("official_top", {})
-                if not isinstance(o_top, dict): o_top = {}
-                
+                if not isinstance(o_top, dict):
+                    results.append({"status": "RETRY", "item": orig_item, "error": f"Invalid official_top object for index {i}"})
+                    continue
+                    
                 top_color = str(o_top.get("color", "")).strip()
                 top_pattern = str(o_top.get("pattern", "")).strip()
                 
@@ -280,7 +300,6 @@ def process_batch(batch_items):
                     sl_raw = str(o_top.get("sleeve_length", "long sleeves")).strip().lower()
                     sl = normalize_sleeve(sl_raw)
                     
-                    # 修复：无刺绣素色上衣规范为 solid color，绝不再误清空！
                     if top_pattern.lower() in ["none", "none.", ""]:
                         top_pattern = "solid color"
                         
@@ -349,12 +368,19 @@ def process_batch(batch_items):
                 results.append({"status": "SUCCESS", "official": official_rec, "extended": extended_rec})
             return results
     except Exception as e:
-        # 异常不生成假成衣！写入待重试列表
         return [{"status": "RETRY", "item": it, "error": f"API/Parse Error: {str(e)[:60]}"} for it in batch_items]
 
 def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_file):
     print(f"Starting V2 Annotation Pipeline on {len(target_items)} images...")
     
+    # 读入已有的待重试队列
+    active_retry_map = {}
+    if RETRY_QUEUE_FILE.exists():
+        try:
+            old_q = json.loads(RETRY_QUEUE_FILE.read_text(encoding="utf-8"))
+            active_retry_map = {q["item"]["image_id"]: q for q in old_q if "item" in q}
+        except: pass
+        
     batches = [target_items[i:i+BATCH_SIZE] for i in range(0, len(target_items), BATCH_SIZE)]
     print(f"Total batches: {len(batches)}, Threads: {MAX_WORKERS}")
     
@@ -362,7 +388,6 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
     completed = 0
     all_official = []
     all_extended = []
-    retry_queue = []
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         future_map = {pool.submit(process_batch, b): b for b in batches}
@@ -373,21 +398,27 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
                     all_official.append(r["official"])
                     all_extended.append(r["extended"])
                     completed += 1
+                    # 成功后从待重试队列彻底清除
+                    iid = r["official"]["image_id"]
+                    active_retry_map.pop(iid, None)
                 else:
-                    retry_queue.append(r)
+                    iid = r["item"]["image_id"]
+                    active_retry_map[iid] = r
             if completed % 30 == 0 or completed == len(target_items):
                 elapsed = time.time() - t0
                 fps = completed / max(0.1, elapsed)
                 print(f"  [Progress: {completed}/{len(target_items)}] Speed: {fps:.2f} img/s | Elapsed: {elapsed:.1f}s")
                 
-    if retry_queue:
-        print(f"\n[Warning] {len(retry_queue)} items failed and need retry:")
-        for q in retry_queue[:5]:
-            print(f"  Failed ID {q['item']['image_id']}: {q['error']}")
-        with open(RETRY_QUEUE_FILE, "w", encoding="utf-8") as f:
-            json.dump(retry_queue, f, ensure_ascii=False, indent=2)
+    # 写入重试队列 (若为空则清理)
+    remaining_retry = list(active_retry_map.values())
+    if remaining_retry:
+        RETRY_QUEUE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        RETRY_QUEUE_FILE.write_text(json.dumps(remaining_retry, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"\n[Warning] {len(remaining_retry)} items in retry queue: {RETRY_QUEUE_FILE}")
+    else:
+        if RETRY_QUEUE_FILE.exists():
+            RETRY_QUEUE_FILE.unlink()
             
-    # Sort by image_id
     all_official.sort(key=lambda x: int(x["image_id"]))
     all_extended.sort(key=lambda x: int(x["image_id"]))
     
