@@ -6,7 +6,9 @@
     "v-neck",
     "collarless",
     "unknown",
-    "none"
+    "none",
+    "square collar",
+    "strapless"
   ],
   "opening_style": [
     "front-opening",
