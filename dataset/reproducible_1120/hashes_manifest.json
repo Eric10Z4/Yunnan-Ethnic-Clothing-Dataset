@@ -1,0 +1,15 @@
+{
+  "sample_id": "1120",
+  "filename": "Dai_wiki_16053360.jpg",
+  "raw_path": "dataset/raw/Dai/Dai_wiki_16053360.jpg",
+  "raw_sha1": "746134954de9b3c9efb8484ca3ebb303246878b7",
+  "before_repair_path": "dataset/reproducible_1120/1120_before_repair.jpg",
+  "before_repair_sha256": "a9ed72881c081e8e5ed67b5312d3aec790995ad4c86a5533e0681044c8327fe4",
+  "mask_path": "dataset/reproducible_1120/1120_cuff_cleanup_mask.png",
+  "mask_semantics": "255 indicates dark background residue to be set to pure white [255, 255, 255]; 0 indicates preserved garment pixels",
+  "mask_sha256": "15972868dc81ebb02dc8ae8d8a69420a16a043f07bffd984be6e91313b2a1b20",
+  "mask_pixels_count": 1474,
+  "after_repair_path": "dataset/images/val/1120.jpg",
+  "after_repair_sha256": "91a6bee95e746c7fa2393a3cf2ea083d6849e63272abdf1302e05db7dae80ff0",
+  "comparison_figure_path": "dataset/reproducible_1120/1120_cuff_zoom_comparison.png"
+}
