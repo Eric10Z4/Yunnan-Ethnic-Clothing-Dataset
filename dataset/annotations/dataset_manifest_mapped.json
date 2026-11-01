@@ -18446,29 +18446,6 @@
     }
   },
   {
-    "image_id": "0803",
-    "split": "train",
-    "group_id": "g0598",
-    "path": "images/train/0803.jpg",
-    "ethnicity": "Yi",
-    "orig_filename": "Yi_batch_97614_117.jpg",
-    "local_dest": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/images/train/0803.jpg",
-    "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Yi/Yi_batch_97614_117.jpg",
-    "meta": {
-      "sample_id": "Yi_batch_97614_117",
-      "ethnicity_zh": "彝族",
-      "ethnicity_en": "Yi",
-      "source_type": "Web_Search_Verified",
-      "filename": "Yi_batch_97614_117.jpg",
-      "local_path": "dataset\\raw\\Yi\\Yi_batch_97614_117.jpg",
-      "image_url": "https://img.alicdn.com/i3/40767840/TB2zuhplkKWBuNjy1zjXXcOypXa_!!40767840.jpg",
-      "source_page_url": "https://tao.hooos.com/goods_551067145558.html",
-      "publisher": "凉山彝族服饰美姑款彝族衣服女士上衣传统春秋机绣款女式衣服_虎窝淘",
-      "license": "Web Published / Editorial Use",
-      "collected_at": "2026-10-28 22:26:54"
-    }
-  },
-  {
     "image_id": "0804",
     "split": "train",
     "group_id": "g0598",
@@ -26790,29 +26767,6 @@
       "image_url": "https://img01.yzcdn.cn/upload_files/2021/07/31/FtXenf7FtOGSyXpXEdYX34h59SD5.jpg!large.jpg",
       "source_page_url": "http://www.dashangu.com/postimg_22862621.html",
       "publisher": "苗族蜡染裙子,苗族蜡染_大山谷图库",
-      "license": "Web Published / Editorial Use",
-      "collected_at": "2026-10-28 22:28:26"
-    }
-  },
-  {
-    "image_id": "1166",
-    "split": "val",
-    "group_id": "g0873",
-    "path": "images/val/1166.jpg",
-    "ethnicity": "Miao",
-    "orig_filename": "Miao_batch_97706_636.jpg",
-    "local_dest": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/images/val/1166.jpg",
-    "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Miao/Miao_batch_97706_636.jpg",
-    "meta": {
-      "sample_id": "Miao_batch_97706_636",
-      "ethnicity_zh": "苗族",
-      "ethnicity_en": "Miao",
-      "source_type": "Web_Search_Verified",
-      "filename": "Miao_batch_97706_636.jpg",
-      "local_path": "dataset\\raw\\Miao\\Miao_batch_97706_636.jpg",
-      "image_url": "https://www.shuomingshu.cn/wp-content/uploads/images/2022/11/08/8c4ec20190a94749b5eff7490643703c_0eswdu5svir.jpg",
-      "source_page_url": "https://www.shuomingshu.cn/changshi/163229.html",
-      "publisher": "苗族刺绣图案大全（认真总结完中国苗绣的十大绣法后发现，有些东西是我们永远不能丢） | 说明书网",
       "license": "Web Published / Editorial Use",
       "collected_at": "2026-10-28 22:28:26"
     }

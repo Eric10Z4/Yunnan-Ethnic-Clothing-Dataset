@@ -1,0 +1,280 @@
+[
+  {
+    "image_id": "0803",
+    "original_split": "train",
+    "original_path": "images/train/0803.jpg",
+    "archived_image_path": "dataset/excluded_samples/final_cleanup_0803_1166/0803.jpg",
+    "image_sha256": "d099afd38ad45979dd9f81e236280b5db88581e8b49cdba69ca360a8ed4c2987",
+    "ethnicity": "Yi",
+    "orig_filename": "Yi_batch_97614_117.jpg",
+    "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Yi/Yi_batch_97614_117.jpg",
+    "source_page_url": "https://tao.hooos.com/goods_551067145558.html",
+    "publisher": "凉山彝族服饰美姑款彝族衣服女士上衣传统春秋机绣款女式衣服_虎窝淘",
+    "exclusion_reason": "局部服饰绣边特写，无法呈现完整服饰主体。",
+    "exclusion_stage": "final_cleanup_c609928_to_final",
+    "backup_records": {
+      "official_caption": {
+        "image_id": "0803",
+        "path": "images/train/0803.jpg",
+        "ethnicity": "Yi",
+        "top": {
+          "color": "black, orange, green, pink, and white",
+          "pattern": "geometric embroidery and meander Greek key motifs",
+          "material": "unknown",
+          "sleeve_length": "unknown"
+        },
+        "bottom_or_dress": "none",
+        "headwear": "none",
+        "caption": "A close-up view of a traditional Yi ethnic garment edge featuring intricate geometric and meander Greek key embroidery on a black background on a pure white background."
+      },
+      "extended_attributes": {
+        "image_id": "0803",
+        "path": "images/train/0803.jpg",
+        "ethnicity": "Yi",
+        "top_structure": {
+          "collar_type": "unknown",
+          "opening_style": "unknown",
+          "closure": "unknown",
+          "decoration_location": [
+            "front placket"
+          ]
+        },
+        "bottom_structure": {
+          "garment_type": "none",
+          "length": "unknown"
+        },
+        "headwear_details": {
+          "type": "none"
+        },
+        "accessories": {
+          "summary": "none"
+        },
+        "material_evidence": {
+          "evidence_level": "E3",
+          "material": "unknown",
+          "source_context": "Visual evidence only; no documented fabric specification"
+        },
+        "qc_audit": {
+          "vlm_confidence": 0.95,
+          "rule_check_passed": true
+        }
+      },
+      "merged_record": {
+        "image_id": "0803",
+        "path": "images/train/0803.jpg",
+        "ethnicity": "Yi",
+        "top": {
+          "color": "black, orange, green, pink, and white",
+          "pattern": "geometric embroidery and meander Greek key motifs",
+          "material": "unknown",
+          "sleeve_length": "unknown",
+          "collar_type": "unknown",
+          "opening_style": "unknown",
+          "closure": "unknown",
+          "decoration_location": [
+            "front placket"
+          ]
+        },
+        "bottom_or_dress": "none",
+        "headwear": "none",
+        "caption": "A close-up view of a traditional Yi ethnic garment edge featuring intricate geometric and meander Greek key embroidery on a black background on a pure white background.",
+        "bottom_structure": {
+          "garment_type": "none",
+          "length": "unknown"
+        },
+        "headwear_details": {
+          "type": "none"
+        },
+        "accessories": {
+          "summary": "none"
+        },
+        "material_evidence": {
+          "evidence_level": "E3",
+          "material": "unknown",
+          "source_context": "Visual evidence only; no documented fabric specification"
+        },
+        "qc_audit": {
+          "vlm_confidence": 0.95,
+          "rule_check_passed": true
+        }
+      },
+      "metadata_row": {
+        "image_id": "0803",
+        "path": "images/train/0803.jpg",
+        "ethnicity": "Yi",
+        "garment_type": "top",
+        "split": "train",
+        "source_url": "https://img.alicdn.com/i3/40767840/TB2zuhplkKWBuNjy1zjXXcOypXa_!!40767840.jpg",
+        "publisher": "凉山彝族服饰美姑款彝族衣服女士上衣传统春秋机绣款女式衣服_虎窝淘",
+        "collected_at": "2026-10-28 22:26:54",
+        "license": "Web Published / Editorial Use",
+        "processing": "rembg_u2net_matting; aspect_ratio_preserve_resize_75pct; pad_pure_white_rgb255_512x512; strict_dual_vlm_qc; two_round_double_blind_human_audit",
+        "source_page_url": "https://tao.hooos.com/goods_551067145558.html",
+        "group_id": "g0598"
+      },
+      "manifest_entry": {
+        "image_id": "0803",
+        "split": "train",
+        "group_id": "g0598",
+        "path": "images/train/0803.jpg",
+        "ethnicity": "Yi",
+        "orig_filename": "Yi_batch_97614_117.jpg",
+        "local_dest": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/images/train/0803.jpg",
+        "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Yi/Yi_batch_97614_117.jpg",
+        "meta": {
+          "sample_id": "Yi_batch_97614_117",
+          "ethnicity_zh": "彝族",
+          "ethnicity_en": "Yi",
+          "source_type": "Web_Search_Verified",
+          "filename": "Yi_batch_97614_117.jpg",
+          "local_path": "dataset\\raw\\Yi\\Yi_batch_97614_117.jpg",
+          "image_url": "https://img.alicdn.com/i3/40767840/TB2zuhplkKWBuNjy1zjXXcOypXa_!!40767840.jpg",
+          "source_page_url": "https://tao.hooos.com/goods_551067145558.html",
+          "publisher": "凉山彝族服饰美姑款彝族衣服女士上衣传统春秋机绣款女式衣服_虎窝淘",
+          "license": "Web Published / Editorial Use",
+          "collected_at": "2026-10-28 22:26:54"
+        }
+      }
+    }
+  },
+  {
+    "image_id": "1166",
+    "original_split": "val",
+    "original_path": "images/val/1166.jpg",
+    "archived_image_path": "dataset/excluded_samples/final_cleanup_0803_1166/1166.jpg",
+    "image_sha256": "03f7520f28c87bb482d59488216be59f8c6aadaad1b07c33324744c7bd060176",
+    "ethnicity": "Miao",
+    "orig_filename": "Miao_batch_97706_636.jpg",
+    "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Miao/Miao_batch_97706_636.jpg",
+    "source_page_url": "https://www.shuomingshu.cn/changshi/163229.html",
+    "publisher": "苗族刺绣图案大全（认真总结完中国苗绣的十大绣法后发现，有些东西是我们永远不能丢） | 说明书网",
+    "exclusion_reason": "独立绣片，不作为本次正式主集的完整服饰样本。",
+    "exclusion_stage": "final_cleanup_c609928_to_final",
+    "backup_records": {
+      "official_caption": {
+        "image_id": "1166",
+        "path": "images/val/1166.jpg",
+        "ethnicity": "Miao",
+        "top": {
+          "color": "red",
+          "pattern": "floral and bird embroidery",
+          "material": "unknown",
+          "sleeve_length": "unknown"
+        },
+        "bottom_or_dress": "none",
+        "headwear": "none",
+        "caption": "A red Miao ethnic upper garment embroidered panel featuring intricate floral and bird motifs on a pure white background."
+      },
+      "extended_attributes": {
+        "image_id": "1166",
+        "path": "images/val/1166.jpg",
+        "ethnicity": "Miao",
+        "top_structure": {
+          "collar_type": "unknown",
+          "opening_style": "unknown",
+          "closure": "unknown",
+          "decoration_location": [
+            "chest",
+            "front placket"
+          ]
+        },
+        "bottom_structure": {
+          "garment_type": "none",
+          "length": "unknown"
+        },
+        "headwear_details": {
+          "type": "none"
+        },
+        "accessories": {
+          "summary": "none"
+        },
+        "material_evidence": {
+          "evidence_level": "E3",
+          "material": "unknown",
+          "source_context": "Visual evidence only; no documented fabric specification"
+        },
+        "qc_audit": {
+          "vlm_confidence": 0.95,
+          "rule_check_passed": true
+        }
+      },
+      "merged_record": {
+        "image_id": "1166",
+        "path": "images/val/1166.jpg",
+        "ethnicity": "Miao",
+        "top": {
+          "color": "red",
+          "pattern": "floral and bird embroidery",
+          "material": "unknown",
+          "sleeve_length": "unknown",
+          "collar_type": "unknown",
+          "opening_style": "unknown",
+          "closure": "unknown",
+          "decoration_location": [
+            "chest",
+            "front placket"
+          ]
+        },
+        "bottom_or_dress": "none",
+        "headwear": "none",
+        "caption": "A red Miao ethnic upper garment embroidered panel featuring intricate floral and bird motifs on a pure white background.",
+        "bottom_structure": {
+          "garment_type": "none",
+          "length": "unknown"
+        },
+        "headwear_details": {
+          "type": "none"
+        },
+        "accessories": {
+          "summary": "none"
+        },
+        "material_evidence": {
+          "evidence_level": "E3",
+          "material": "unknown",
+          "source_context": "Visual evidence only; no documented fabric specification"
+        },
+        "qc_audit": {
+          "vlm_confidence": 0.95,
+          "rule_check_passed": true
+        }
+      },
+      "metadata_row": {
+        "image_id": "1166",
+        "path": "images/val/1166.jpg",
+        "ethnicity": "Miao",
+        "garment_type": "top",
+        "split": "val",
+        "source_url": "https://www.shuomingshu.cn/wp-content/uploads/images/2022/11/08/8c4ec20190a94749b5eff7490643703c_0eswdu5svir.jpg",
+        "publisher": "苗族刺绣图案大全（认真总结完中国苗绣的十大绣法后发现，有些东西是我们永远不能丢） | 说明书网",
+        "collected_at": "2026-10-28 22:28:26",
+        "license": "Web Published / Editorial Use",
+        "processing": "rembg_u2net_matting; aspect_ratio_preserve_resize_75pct; pad_pure_white_rgb255_512x512; strict_dual_vlm_qc; two_round_double_blind_human_audit",
+        "source_page_url": "https://www.shuomingshu.cn/changshi/163229.html",
+        "group_id": "g0873"
+      },
+      "manifest_entry": {
+        "image_id": "1166",
+        "split": "val",
+        "group_id": "g0873",
+        "path": "images/val/1166.jpg",
+        "ethnicity": "Miao",
+        "orig_filename": "Miao_batch_97706_636.jpg",
+        "local_dest": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/images/val/1166.jpg",
+        "raw_path": "C:/Users/26730/Desktop/课程相关/计算机视觉/期中实验/dataset/raw/Miao/Miao_batch_97706_636.jpg",
+        "meta": {
+          "sample_id": "Miao_batch_97706_636",
+          "ethnicity_zh": "苗族",
+          "ethnicity_en": "Miao",
+          "source_type": "Web_Search_Verified",
+          "filename": "Miao_batch_97706_636.jpg",
+          "local_path": "dataset\\raw\\Miao\\Miao_batch_97706_636.jpg",
+          "image_url": "https://www.shuomingshu.cn/wp-content/uploads/images/2022/11/08/8c4ec20190a94749b5eff7490643703c_0eswdu5svir.jpg",
+          "source_page_url": "https://www.shuomingshu.cn/changshi/163229.html",
+          "publisher": "苗族刺绣图案大全（认真总结完中国苗绣的十大绣法后发现，有些东西是我们永远不能丢） | 说明书网",
+          "license": "Web Published / Editorial Use",
+          "collected_at": "2026-10-28 22:28:26"
+        }
+      }
+    }
+  }
+]
