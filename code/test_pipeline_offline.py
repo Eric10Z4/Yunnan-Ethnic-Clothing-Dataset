@@ -188,5 +188,19 @@ class TestProductionPipeline(unittest.TestCase):
         self.assertTrue(all(x["status"] == "RETRY" for x in out))
         self.assertTrue(all("Missing or invalid has_top boolean" in x["error"] for x in out))
 
+    def test_10_null_pattern_and_null_sleeve(self):
+        """测试 10：真实调用 process_batch，验证 pattern 为 null 或 sleeve 为 null 严格进入 RETRY"""
+        payload_pattern_null = json.dumps([
+            {"index": 1, "has_top": True, "official_top": {"color": "blue", "pattern": None, "sleeve_length": "long sleeves"}, "official_caption": "A jacket."},
+            {"index": 2, "has_top": True, "official_top": {"color": "blue", "pattern": "solid", "sleeve_length": None}, "official_caption": "A jacket."},
+            {"index": 3, "has_top": True, "official_top": {"color": "blue", "pattern": "   ", "sleeve_length": "long sleeves"}, "official_caption": "A jacket."}
+        ])
+        with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload_pattern_null)):
+            out = pipe.process_batch(test_items)
+        self.assertTrue(all(x["status"] == "RETRY" for x in out))
+        self.assertIn("Missing top pattern", out[0]["error"])
+        self.assertIn("Missing top sleeve_length", out[1]["error"])
+        self.assertIn("Missing top pattern", out[2]["error"])
+
 if __name__ == "__main__":
     unittest.main()

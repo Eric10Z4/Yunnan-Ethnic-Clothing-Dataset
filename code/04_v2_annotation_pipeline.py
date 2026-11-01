@@ -311,23 +311,40 @@ def process_batch(batch_items):
                     ext_closure = "none"
                     ext_decor = []
                 else:
-                    # has_top 为 True 时，必须提供 color, pattern, sleeve_length 且不能为空
-                    top_color = str(o_top.get("color", "")).strip()
-                    top_pattern = str(o_top.get("pattern", "")).strip()
-                    sl_raw = str(o_top.get("sleeve_length", "")).strip()
+                    # has_top 为 True 时，在任何 str() 或 strip() 之前，必须严格检查原始字段类型和非空
+                    bad_fld = None
+                    for fld in ["color", "pattern", "sleeve_length"]:
+                        if fld not in o_top:
+                            bad_fld = (fld, "missing")
+                            break
+                        raw_v = o_top[fld]
+                        if raw_v is None:
+                            bad_fld = (fld, "null")
+                            break
+                        if not isinstance(raw_v, str):
+                            bad_fld = (fld, f"invalid type {type(raw_v).__name__}")
+                            break
+                        if not raw_v.strip():
+                            bad_fld = (fld, "empty or blank")
+                            break
+                            
+                    if bad_fld:
+                        fld_name, reason = bad_fld
+                        results.append({
+                            "status": "RETRY",
+                            "item": orig_item,
+                            "error": f"Missing top {fld_name} ({reason}) for index {i}"
+                        })
+                        continue
+
+                    top_color = o_top["color"].strip()
+                    top_pattern = o_top["pattern"].strip()
+                    sl_raw = o_top["sleeve_length"].strip()
                     
-                    if not top_color or top_color.lower() in ["none", "absent"]:
-                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top color for index {i}"})
+                    if top_color.lower() in ["none", "absent"]:
+                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top color (none/absent but has_top is true) for index {i}"})
                         continue
-                        
-                    if not top_pattern:
-                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top pattern for index {i}"})
-                        continue
-                        
-                    if not sl_raw:
-                        results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top sleeve_length for index {i}"})
-                        continue
-                        
+
                     sl = normalize_sleeve(sl_raw)
                     if top_pattern.lower() in ["none", "none."]:
                         top_pattern = "solid color"
