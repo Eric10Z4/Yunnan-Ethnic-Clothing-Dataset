@@ -25,15 +25,15 @@ import urllib.request
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE_DIR = Path(__file__).resolve().parent.parent if "__file__" in locals() else Path(r"C:\Users\26730\Desktop\课程相关\计算机视觉\期中实验")
+from vlm_config import DEFAULT_MODEL_NAME, build_vlm_request
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "dataset" / "processed"
 JSONL_LOG = PROCESSED_DIR / "vlm_qc_results.jsonl"
 CSV_SUMMARY = PROCESSED_DIR / "vlm_qc_summary.csv"
 HTML_DASHBOARD = PROCESSED_DIR / "review_dashboard.html"
 
-API_URL = "http://localhost:8317/v1/chat/completions"
-API_KEY = "sk-eric10z4"
-MODEL_NAME = "gemini-3.1-flash-lite"
+MODEL_NAME = DEFAULT_MODEL_NAME
 BATCH_SIZE = 5
 
 def load_processed_images():
@@ -73,7 +73,7 @@ def evaluate_batch(batch_files):
                     '[{"filename": "...", "status": "PASS" | "REVIEW" | "FAIL", "score": 1-100, "defects": ["..."], "summary": "..."}]'
         }
     ]
-    
+
     file_map = {}
     for idx, f in enumerate(batch_files, 1):
         with open(f, "rb") as fp:
@@ -81,19 +81,15 @@ def evaluate_batch(batch_files):
         file_map[idx] = f.name
         content.append({"type": "text", "text": f"--- 图片 #{idx} [文件名: {f.name}, 民族: {f.parent.name}] ---"})
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-        
+
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": content}],
         "temperature": 0.2
     }
-    
-    req = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
-    )
-    
+
+    req = build_vlm_request(payload)
+
     try:
         with urllib.request.urlopen(req, timeout=40) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -102,7 +98,7 @@ def evaluate_batch(batch_files):
                 raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
-            
+
             standardized = []
             for i, item in enumerate(parsed):
                 fn = file_map.get(i+1, batch_files[i].name if i < len(batch_files) else "")
@@ -124,7 +120,7 @@ def evaluate_batch(batch_files):
 
 def generate_html_dashboard(records):
     records_json = json.dumps(records, ensure_ascii=False)
-    
+
     html = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -239,21 +235,21 @@ def run_vlm_qc():
     print("==================================================")
     print("启动阶段三 · 步骤三：VLM 视觉模型全量自动化抠图验收质检")
     print("==================================================")
-    
+
     all_images = load_processed_images()
     existing_records = load_existing_records()
     print(f"总计待质检图像: {len(all_images)} 张 | 历史已完成: {len(existing_records)} 张")
-    
+
     pending_images = [img for img in all_images if img.name not in existing_records]
     print(f"本次待执行批量评估: {len(pending_images)} 张，批大小: {BATCH_SIZE}...")
-    
+
     batches = [pending_images[i:i+BATCH_SIZE] for i in range(0, len(pending_images), BATCH_SIZE)]
     print(f"切分为 {len(batches)} 个多模态并行批次，启动 5 线程并发质检...")
-    
+
     t0 = time.time()
     completed_count = 0
     newly_evaluated = []
-    
+
     if len(batches) > 0:
         with ThreadPoolExecutor(max_workers=5) as pool:
             future_map = {pool.submit(evaluate_batch, b): b for b in batches}
@@ -261,20 +257,20 @@ def run_vlm_qc():
                 b_results = fut.result()
                 newly_evaluated.extend(b_results)
                 completed_count += len(b_results)
-                
+
                 with open(JSONL_LOG, "a", encoding="utf-8") as f:
                     for item in b_results:
                         f.write(json.dumps(item, ensure_ascii=False) + "\n")
                         existing_records[item["filename"]] = item
-                        
+
                 if completed_count % 50 == 0 or completed_count >= len(pending_images):
                     elapsed = time.time() - t0
                     fps = completed_count / max(0.1, elapsed)
                     print(f"  [质检进度: {completed_count}/{len(pending_images)}] 速度: {fps:.2f} 图/秒 | 耗时: {elapsed:.1f}s")
-                    
+
     all_evaluated = list(existing_records.values())
     all_evaluated.sort(key=lambda x: (x.get("ethnicity", ""), -x.get("score", 0)))
-    
+
     csv_fields = ["filename", "ethnicity", "status", "score", "defects", "summary"]
     with open(CSV_SUMMARY, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction="ignore")
@@ -284,13 +280,13 @@ def run_vlm_qc():
             if isinstance(clean_r.get("defects"), list):
                 clean_r["defects"] = "; ".join(clean_r["defects"])
             writer.writerow(clean_r)
-            
+
     generate_html_dashboard(all_evaluated)
-    
+
     pass_cnt = sum(1 for r in all_evaluated if r.get("status") == "PASS")
     review_cnt = sum(1 for r in all_evaluated if r.get("status") == "REVIEW")
     fail_cnt = sum(1 for r in all_evaluated if r.get("status") == "FAIL")
-    
+
     total_time = time.time() - t0
     print("\n==================================================")
     print("VLM 智能质检验收全部完成！")

@@ -73,12 +73,24 @@ class MockResponse:
 
 class TestProductionPipeline(unittest.TestCase):
 
+    def setUp(self):
+        # A deterministic, non-network fixture; do not read machine credentials.
+        config = patch.dict(os.environ, {
+            "YECID_VLM_CONFIG": "",
+            "YECID_VLM_API_URL": "http://offline.invalid/v1/chat/completions",
+            "YECID_VLM_MODEL": "offline-test-model",
+            "YECID_VLM_API_KEY": "",
+            "YECID_DATASET_DIR": "",
+        })
+        config.start()
+        self.addCleanup(config.stop)
+
     def test_01_plain_top_pattern_none(self):
         """测试 1：真实调用 process_batch，验证 pattern=none 规范为 solid color 且保留上衣"""
         payload = json.dumps([make_rec(1), make_rec(2), make_rec(3)])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
             out = pipe.process_batch(test_items)
-            
+
         self.assertEqual(len(out), 3)
         for res in out:
             self.assertEqual(res["status"], "SUCCESS")
@@ -92,7 +104,7 @@ class TestProductionPipeline(unittest.TestCase):
         payload = json.dumps([make_rec(1, has_top=False), make_rec(2), make_rec(3)])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
             out = pipe.process_batch(test_items)
-            
+
         self.assertEqual(out[0]["status"], "SUCCESS")
         top0 = out[0]["official"]["top"]
         ext0 = out[0]["extended"]["top_structure"]
@@ -108,7 +120,7 @@ class TestProductionPipeline(unittest.TestCase):
         payload = json.dumps(shuffled)
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload)):
             out = pipe.process_batch(test_items)
-            
+
         colors = [x["official"]["top"]["color"] for x in out]
         self.assertEqual(colors, ["red", "blue", "green"])
 
@@ -119,7 +131,7 @@ class TestProductionPipeline(unittest.TestCase):
             out_missing = pipe.process_batch(test_items)
         self.assertEqual(out_missing[1]["status"], "RETRY")
         self.assertIn("Missing response index 2", out_missing[1]["error"])
-        
+
         payload_dup = json.dumps([make_rec(1, "red"), make_rec(1, "green"), make_rec(2), make_rec(3)])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(payload_dup)):
             out_dup = pipe.process_batch(test_items)
@@ -132,7 +144,7 @@ class TestProductionPipeline(unittest.TestCase):
             out_err = pipe.process_batch(test_items)
         self.assertTrue(all(x["status"] == "RETRY" for x in out_err))
         self.assertTrue(all("official" not in x for x in out_err))
-        
+
         incomplete_payload = json.dumps([{"index": i} for i in [1, 2, 3]])
         with patch.object(pipe.urllib.request, "urlopen", return_value=MockResponse(incomplete_payload)):
             out_inc = pipe.process_batch(test_items)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云南民族服饰数据集 · 第二轮人工复核终审系统 (v3)</title>
+    <title>云南民族服饰数据集 · 当前主集人工评审 (v3)</title>
     <style>
         :root {
             --primary: #1976d2;
@@ -81,36 +81,56 @@
         .modal-card h2 { font-size: 16px; margin-bottom: 10px; color: #111; }
         .modal-card input { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 14px; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        #reviewNotice { padding: 8px 18px; border-bottom: 1px solid var(--border); background: #fff; font-size: 12px; line-height: 1.5; }
+        #imageStatus { padding: 24px; text-align: center; white-space: pre-line; line-height: 1.8; font-size: 14px; color: #5c6470; }
+        button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+        header { flex-wrap: wrap; gap: 8px; }
+        .image-container { flex-shrink: 0; }
+        .panel-viewer { justify-content: flex-start; }
+        @media (max-width: 1250px) {
+            .panel-guide { width: 230px; }
+            .panel-info { width: 260px; }
+            .controls-container { width: 100%; max-width: 620px; }
+            .image-container { width: min(100%, 512px); height: auto; min-height: 340px; aspect-ratio: 1; }
+        }
+        @media (max-width: 850px) {
+            body { height: auto; min-height: 100vh; overflow: auto; }
+            .workspace { flex-direction: column; overflow: visible; }
+            .panel-guide, .panel-info { width: 100%; overflow: visible; }
+            .panel-guide { display: none; }
+            .panel-viewer { overflow: visible; }
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="header-title">
-            <h1>🏛️ 云南民族服饰图像数据集 · 第二轮人工独立复审系统 (v3)</h1>
-            <p>计算机视觉期中大作业 | 阶段三：1,603 张初筛合格样本双盲独立交叉审核</p>
+            <h1>🏛️ 云南民族服饰图像数据集 · 当前主集人工评审 (v3)</h1>
+            <p>当前主集公开索引 | 图片另行提供 | UI评审记录不改写数据集标注</p>
         </div>
         <div class="header-stats">
-            <span class="stat-badge stat-total" id="statTotal">总进度: 0 / 1603</span>
+            <span class="stat-badge stat-total" id="statTotal">总进度: 0 / 0</span>
             <span class="stat-badge stat-ok" id="statPass">✅ 合格: 0</span>
             <span class="stat-badge stat-ng" id="statFail">❌ 不合格: 0</span>
-            <span class="stat-badge stat-pending" id="statPending">⏳ 待审: 1603</span>
+            <span class="stat-badge stat-pending" id="statPending">⏳ 待审: 0</span>
         </div>
         <div class="header-actions">
             <button class="btn" onclick="jumpToNextPending()">🔍 跳至下一张待审</button>
-            <button class="btn btn-success" onclick="exportResults()">💾 导出第二轮复审清单</button>
+            <button class="btn btn-success" onclick="exportResults()">💾 导出本次UI评审CSV</button>
         </div>
     </header>
 
+    <p id="reviewNotice" role="status">正在读取当前快照索引…</p>
     <div class="workspace">
         <div class="panel-guide">
             <div class="guide-section">
-                <h3>📋 第二轮复审核心准则</h3>
+                <h3>📋 人工评审参考准则</h3>
                 <div class="rule-card rule-pass">
                     <strong>✅ 【合格 (PASS)】必备准则：</strong>
-                    1. <strong>单主体</strong>：画面只有1位模特穿着或1件衣服挂展。<br>
-                    2. <strong>衣服为主</strong>：有充分的服装面积展示（全身/大半身）。<br>
+                    1. <strong>单主体</strong>：单人穿着、单件服装、成套展品或独立服饰配件。<br>
+                    2. <strong>按类别核对</strong>：服装应展示主体；独立鞋帽、背饰等不因不是整套衣服而自动否决。<br>
                     3. <strong>真实实拍</strong>：真实相机拍摄，非手绘插画/AI虚构。<br>
-                    4. <strong>白底干净</strong>：背景纯白无大块污斑与残渣。
+                    4. <strong>白底干净</strong>：背景纯白无大块污斑与残渣。民族归属争议需核对公开来源，不凭外观确认。
                 </div>
                 <div class="rule-card rule-fail">
                     <strong>❌ 【不合格】细分归因：</strong>
@@ -140,7 +160,8 @@
 
         <div class="panel-viewer">
             <div class="image-container" id="imageContainer">
-                <img id="mainImage" src="" alt="待评审服饰图像">
+                <img id="mainImage" alt="待评审服饰图像" hidden>
+                <div id="imageStatus" role="status">正在读取评审索引…</div>
                 <div class="image-stamp" id="stamp"></div>
             </div>
 
@@ -175,13 +196,13 @@
                 </button>
 
                 <div class="shortcut-bar">
-                    提示：评审数据实时保存在浏览器中，关闭或刷新页面不会丢失进度。全部审完后点击右上角导出清单。
+                    提示：评审记录按快照保存在当前浏览器；清除浏览器数据会丢失进度。请及时导出CSV。图片缺失时不能判定，导出记录不自动更新标注。
                 </div>
             </div>
         </div>
 
         <div class="panel-info">
-            <div class="info-header">📌 样本元数据与初筛档案</div>
+            <div class="info-header">📌 当前公开元数据与描述</div>
             <div class="info-body">
                 <div class="info-row">
                     <div class="info-label">样本序号 / 编号</div>
@@ -192,7 +213,7 @@
                     <div class="info-val" id="infoEthnicity" style="color:var(--primary); font-size:15px;">-</div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">文件名 (Filename)</div>
+                    <div class="info-label">主集相对路径 (Path)</div>
                     <div class="info-val" id="infoFilename" style="font-family: monospace; font-size: 11px;">-</div>
                 </div>
                 <div class="info-row">
@@ -206,19 +227,23 @@
 
                 <div class="vlm-box">
                     <div class="vlm-title">
-                        <span>🤖 视觉模型初审状态</span>
-                        <span id="infoVlmScore" style="color:var(--primary); font-weight:bold;">-</span>
+                        <span>公开标注描述</span>
+                        <span id="infoSplit" style="color:var(--primary); font-weight:bold;">-</span>
                     </div>
                     <div class="info-row" style="margin-bottom:0;">
-                        <div class="info-label">初审理由记录</div>
-                        <div class="info-val" id="infoVlmReason" style="font-size:11px; font-weight:normal; color:#555; line-height:1.4;">-</div>
+                        <div class="info-label">Caption</div>
+                        <div class="info-val" id="infoCaption" style="font-size:11px; font-weight:normal; color:#555; line-height:1.4;">-</div>
                     </div>
+                </div>
+                <div class="info-row" style="margin-top:12px;">
+                    <div class="info-label">公开来源页面</div>
+                    <a class="info-val" id="infoSource" target="_blank" rel="noopener noreferrer">-</a>
                 </div>
             </div>
 
             <div class="info-nav">
                 <button class="btn" onclick="prevItem()">上一张 (←)</button>
-                <span id="jumpBox" style="font-size:12px; color:#666;">1 / 1603</span>
+                <span id="jumpBox" style="font-size:12px; color:#666;">0 / 0</span>
                 <button class="btn" onclick="nextItem()">下一张 (→)</button>
             </div>
         </div>
@@ -236,243 +261,7 @@
     </div>
 
     <script src="data.js"></script>
-    <script>
-        const items = window.AUDIT_ITEMS || [];
-        let currentIndex = 0;
-        let auditResults = {};
-
-        const STORAGE_KEY = "ETHNIC_AUDIT_V3_RESULTS";
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try { auditResults = JSON.parse(saved); } catch(e){}
-        }
-
-        function init() {
-            if (!items.length) {
-                alert("未加载到待评审数据 (data.js)！");
-                return;
-            }
-            const firstPending = items.findIndex(item => !auditResults[item.item_id]);
-            currentIndex = firstPending !== -1 ? firstPending : 0;
-            renderCurrent();
-            updateStats();
-        }
-
-        function renderCurrent() {
-            if (currentIndex < 0) currentIndex = 0;
-            if (currentIndex >= items.length) currentIndex = items.length - 1;
-
-            const item = items[currentIndex];
-            const myDecision = auditResults[item.item_id];
-
-            document.getElementById("mainImage").src = "images/" + item.display_name;
-
-            const stamp = document.getElementById("stamp");
-            const rowFail = document.getElementById("rowFailReason");
-            const infoMyDec = document.getElementById("infoMyDecision");
-
-            if (myDecision) {
-                if (myDecision.status === "PASS") {
-                    stamp.className = "image-stamp stamp-pass";
-                    stamp.innerText = "合格 (PASS)";
-                    infoMyDec.innerHTML = `<span style="color:var(--success); font-weight:bold;">✅ 合格 (PASS)</span>`;
-                    rowFail.style.display = "none";
-                } else {
-                    stamp.className = "image-stamp stamp-fail";
-                    stamp.innerText = `❌ ${myDecision.reason}`;
-                    infoMyDec.innerHTML = `<span style="color:var(--danger); font-weight:bold;">❌ 不合格 (FAIL)</span>`;
-                    rowFail.style.display = "block";
-                    document.getElementById("infoFailReason").innerText = `${myDecision.reason} (${myDecision.detail || myDecision.code})`;
-                }
-            } else {
-                stamp.className = "image-stamp";
-                infoMyDec.innerHTML = `<span style="color:var(--warning); font-weight:bold;">⏳ 待评审</span>`;
-                rowFail.style.display = "none";
-            }
-
-            document.getElementById("infoIndex").innerText = `#${item.item_id} (第 ${currentIndex + 1} / ${items.length} 张)`;
-            document.getElementById("infoEthnicity").innerText = item.ethnicity;
-            document.getElementById("infoFilename").innerText = item.orig_filename;
-            document.getElementById("infoVlmScore").innerText = item.vlm_score ? `${item.vlm_score} 分` : "-";
-            document.getElementById("infoVlmReason").innerText = item.vlm_reason || "-";
-            document.getElementById("jumpBox").innerText = `${currentIndex + 1} / ${items.length}`;
-        }
-
-        function decidePass() {
-            const item = items[currentIndex];
-            auditResults[item.item_id] = {
-                status: "PASS",
-                reason: "合格",
-                code: "NONE",
-                detail: ""
-            };
-            persistAndNext();
-        }
-
-        function decideFail(reason, code, detail="") {
-            const item = items[currentIndex];
-            auditResults[item.item_id] = {
-                status: "FAIL",
-                reason: reason,
-                code: code,
-                detail: detail
-            };
-            persistAndNext();
-        }
-
-        function promptOtherReason() {
-            document.getElementById("inputOtherReason").value = "";
-            document.getElementById("modalOther").style.display = "flex";
-            document.getElementById("inputOtherReason").focus();
-        }
-
-        function confirmOtherReason() {
-            const text = document.getElementById("inputOtherReason").value.trim() || "其它原因";
-            closeModal("modalOther");
-            decideFail("其他原因", "OTHER", text);
-        }
-
-        function persistAndNext() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(auditResults));
-            updateStats();
-            renderCurrent();
-            if (currentIndex < items.length - 1) {
-                setTimeout(() => {
-                    currentIndex++;
-                    renderCurrent();
-                }, 100);
-            }
-        }
-
-        function nextItem() {
-            if (currentIndex < items.length - 1) {
-                currentIndex++;
-                renderCurrent();
-            }
-        }
-
-        function prevItem() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                renderCurrent();
-            }
-        }
-
-        function jumpToNextPending() {
-            const nextIdx = items.findIndex((it, idx) => idx > currentIndex && !auditResults[it.item_id]);
-            if (nextIdx !== -1) {
-                currentIndex = nextIdx;
-                renderCurrent();
-            } else {
-                const anyIdx = items.findIndex(it => !auditResults[it.item_id]);
-                if (anyIdx !== -1) {
-                    currentIndex = anyIdx;
-                    renderCurrent();
-                } else {
-                    alert("🎉 恭喜！全部 1603 张图片均已复审完毕！");
-                }
-            }
-        }
-
-        function updateStats() {
-            const total = items.length;
-            let pass = 0, fail = 0;
-            for (let id in auditResults) {
-                if (auditResults[id].status === "PASS") pass++;
-                else if (auditResults[id].status === "FAIL") fail++;
-            }
-            const pending = total - (pass + fail);
-
-            document.getElementById("statTotal").innerText = `总进度: ${pass + fail} / ${total} (${((pass+fail)/total*100).toFixed(1)}%)`;
-            document.getElementById("statPass").innerText = `✅ 合格: ${pass}`;
-            document.getElementById("statFail").innerText = `❌ 不合格: ${fail}`;
-            document.getElementById("statPending").innerText = `⏳ 待审: ${pending}`;
-        }
-
-        function exportResults() {
-            const rows = [
-                ["item_id", "ethnicity", "filename", "human_decision", "fail_reason", "fail_code", "fail_detail", "vlm_score", "vlm_reason", "audited_at"]
-            ];
-            const now = new Date().toISOString();
-            items.forEach(it => {
-                const dec = auditResults[it.item_id];
-                if (dec) {
-                    rows.push([
-                        it.item_id,
-                        it.ethnicity,
-                        it.orig_filename,
-                        dec.status,
-                        dec.reason,
-                        dec.code,
-                        `"${(dec.detail || '').replace(/"/g, '""')}"`,
-                        it.vlm_score || "",
-                        `"${(it.vlm_reason || '').replace(/"/g, '""')}"`,
-                        now
-                    ]);
-                } else {
-                    rows.push([
-                        it.item_id,
-                        it.ethnicity,
-                        it.orig_filename,
-                        "PENDING",
-                        "",
-                        "",
-                        "",
-                        it.vlm_score || "",
-                        `"${(it.vlm_reason || '').replace(/"/g, '""')}"`,
-                        now
-                    ]);
-                }
-            });
-
-            const csvContent = "\uFEFF" + rows.map(e => e.join(",")).join("\n");
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `民族服饰数据集第二轮复审清单_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).style.display = "none";
-        }
-
-        window.addEventListener("keydown", (e) => {
-            if (document.getElementById("modalOther").style.display === "flex") {
-                if (e.key === "Enter") confirmOtherReason();
-                if (e.key === "Escape") closeModal("modalOther");
-                return;
-            }
-
-            const key = e.key.toUpperCase();
-            if (key === "J" || e.code === "Space" || e.key === "Enter") {
-                e.preventDefault();
-                decidePass();
-            } else if (key === "1") {
-                decideFail('插画/手绘/3D/AI生成', 'NOT_REAL_PHOTO');
-            } else if (key === "2") {
-                decideFail('纯脸特写/缺乏服饰', 'FACE_ONLY_NO_CLOTHING');
-            } else if (key === "3") {
-                decideFail('方形布料/面料桌布', 'NOT_GARMENT');
-            } else if (key === "4") {
-                decideFail('现代便装/非少数民族', 'INVALID_ETHNIC_COSTUME');
-            } else if (key === "5") {
-                decideFail('多人合影/群演照片', 'MULTI_PERSON');
-            } else if (key === "6") {
-                decideFail('抠图破损/严重污斑', 'BAD_SEGMENTATION');
-            } else if (key === "7") {
-                promptOtherReason();
-            } else if (e.key === "ArrowRight") {
-                nextItem();
-            } else if (e.key === "ArrowLeft") {
-                prevItem();
-            }
-        });
-
-        window.onload = init;
-    </script>
+    <script src="review_state.js"></script>
+    <script src="review.js"></script>
 </body>
 </html>

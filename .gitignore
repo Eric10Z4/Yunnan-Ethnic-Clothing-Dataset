@@ -9,6 +9,12 @@ venv/
 ENV/
 .cache/
 
+# Machine-local service configuration and authentication (never publish)
+.env
+.env.*
+!.env.example
+code/configs/*.local.json
+
 # Ignore all image binaries (per assignment: lightweight repo, metadata-only distribution)
 *.jpg
 *.jpeg

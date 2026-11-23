@@ -26,17 +26,17 @@ from PIL import Image
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE_DIR = Path(__file__).resolve().parent.parent if "__file__" in locals() else Path(r"C:\Users\26730\Desktop\课程相关\计算机视觉\期中实验")
-DATASET_DIR = BASE_DIR / "dataset"
+from vlm_config import DEFAULT_MODEL_NAME, build_vlm_request, get_dataset_root, resolve_dataset_image
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATASET_DIR = get_dataset_root()
 IMAGES_DIR = DATASET_DIR / "images"
 ANNOTATIONS_DIR = DATASET_DIR / "annotations"
 MAPPING_FILE = ANNOTATIONS_DIR / "dataset_manifest_mapped.json"
 VOCAB_FILE = BASE_DIR / "code" / "configs" / "controlled_vocab.json"
 RETRY_QUEUE_FILE = ANNOTATIONS_DIR / "failed_retry_queue.json"
 
-API_URL = "http://localhost:8317/v1/chat/completions"
-API_KEY = "sk-eric10z4"
-MODEL_NAME = "gemini-3.1-flash-lite"
+MODEL_NAME = DEFAULT_MODEL_NAME
 BATCH_SIZE = 3
 MAX_WORKERS = 8
 
@@ -130,14 +130,14 @@ def normalize_headwear(val):
 def get_material_evidence(item):
     meta = item.get("meta", {})
     publisher = meta.get("publisher", "")
-    
+
     if any(k in publisher for k in ["纯手工羊毛", "羊毛披风", "羊毛查尔瓦", "羊毛织锦"]):
         return {"evidence_level": "E1", "material": "wool", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
     if any(k in publisher for k in ["纯棉扎染", "大理纯棉", "纯棉布"]):
         return {"evidence_level": "E1", "material": "cotton", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
     if any(k in publisher for k in ["真丝织锦", "丝绸长袍", "云锦"]):
         return {"evidence_level": "E1", "material": "silk", "source_context": f"Documented in publisher: '{publisher[:40]}'"}
-        
+
     return {"evidence_level": "E3", "material": "unknown", "source_context": "Visual evidence only; no documented fabric specification"}
 
 def get_b64(path, max_dim=512):
@@ -197,28 +197,24 @@ Accuracy, visual grounding, and uncertainty control are strictly prioritized ove
 
 def process_batch(batch_items):
     content = [{"type": "text", "text": PROMPT_V2 + f"\n\nAnnotate the following {len(batch_items)} images:"}]
-    
+
     for idx, item in enumerate(batch_items, 1):
-        b64 = get_b64(item.get("local_dest", ""))
+        b64 = get_b64(resolve_dataset_image(item))
         mat_info = get_material_evidence(item)
         content.append({
             "type": "text",
             "text": f"\n--- Image #{idx} [ID: {item['image_id']}, Ethnicity: {item['ethnicity']}, Verified Material: {mat_info['material']}] ---"
         })
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-        
+
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": content}],
         "temperature": 0.1
     }
-    
-    req = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
-    )
-    
+
+    req = build_vlm_request(payload)
+
     try:
         with urllib.request.urlopen(req, timeout=45) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -227,7 +223,7 @@ def process_batch(batch_items):
                 raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
-            
+
             # 严格检查 index：重复、越界、缺失
             seen_indices = set()
             dup_indices = set()
@@ -243,7 +239,7 @@ def process_batch(batch_items):
                         if iv_int < 1 or iv_int > len(batch_items):
                             out_of_range = True
                     except: pass
-                    
+
             idx_map = {}
             for p_item in parsed:
                 iv = p_item.get("index")
@@ -253,51 +249,51 @@ def process_batch(batch_items):
                         if iv_int not in dup_indices:
                             idx_map[iv_int] = p_item
                     except: pass
-                    
+
             results = []
             for i, orig_item in enumerate(batch_items, 1):
                 # 检查重复 index
                 if i in dup_indices:
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Duplicate index {i} in response"})
                     continue
-                    
+
                 # 检查越界
                 if out_of_range and i == len(batch_items):
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Extra out-of-range index in response"})
                     continue
-                    
+
                 p_item = idx_map.get(i)
                 if not p_item:
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing response index {i}"})
                     continue
-                    
+
                 # 检查必需顶层字段
                 if "official_caption" not in p_item or not str(p_item.get("official_caption", "")).strip():
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing official_caption for index {i}"})
                     continue
-                    
+
                 if "official_top" not in p_item:
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing required visual fields for index {i}"})
                     continue
-                    
+
                 o_top = p_item.get("official_top")
                 if not isinstance(o_top, dict):
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Invalid official_top object for index {i}"})
                     continue
-                    
+
                 has_top = p_item.get("has_top")
                 # has_top 必须是显式布尔值，或者有可靠推断
                 if not isinstance(has_top, bool):
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Missing or invalid has_top boolean for index {i}"})
                     continue
-                    
+
                 # 检查空字典 official_top: {}
                 if has_top and len(o_top) == 0:
                     results.append({"status": "RETRY", "item": orig_item, "error": f"Empty official_top object for index {i}"})
                     continue
 
                 mat_info = get_material_evidence(orig_item)
-                
+
                 # 只有真正无上衣时才置 none
                 if not has_top:
                     official_top = {
@@ -327,7 +323,7 @@ def process_batch(batch_items):
                         if not raw_v.strip():
                             bad_fld = (fld, "empty or blank")
                             break
-                            
+
                     if bad_fld:
                         fld_name, reason = bad_fld
                         results.append({
@@ -340,7 +336,7 @@ def process_batch(batch_items):
                     top_color = o_top["color"].strip()
                     top_pattern = o_top["pattern"].strip()
                     sl_raw = o_top["sleeve_length"].strip()
-                    
+
                     if top_color.lower() in ["none", "absent"]:
                         results.append({"status": "RETRY", "item": orig_item, "error": f"Missing top color (none/absent but has_top is true) for index {i}"})
                         continue
@@ -348,14 +344,14 @@ def process_batch(batch_items):
                     sl = normalize_sleeve(sl_raw)
                     if top_pattern.lower() in ["none", "none."]:
                         top_pattern = "solid color"
-                        
+
                     official_top = {
                         "color": top_color,
                         "pattern": top_pattern,
                         "material": mat_info["material"],
                         "sleeve_length": sl
                     }
-                    
+
                     ext_struct = p_item.get("extended_structure", {})
                     if not isinstance(ext_struct, dict): ext_struct = {}
                     ext_collar = normalize_collar(ext_struct.get("collar_type"))
@@ -366,10 +362,10 @@ def process_batch(batch_items):
 
                 raw_caption = str(p_item.get("official_caption", f"Traditional {orig_item['ethnicity']} ethnic clothing on pure white background."))
                 clean_caption = sanitize_caption(raw_caption, is_unknown=(mat_info["material"] == "unknown"))
-                
+
                 bot_text = str(p_item.get("official_bottom_or_dress", "none")).strip()
                 head_text = str(p_item.get("official_headwear", "none")).strip()
-                
+
                 official_rec = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
@@ -379,12 +375,12 @@ def process_batch(batch_items):
                     "headwear": head_text,
                     "caption": clean_caption
                 }
-                
+
                 ext_struct = p_item.get("extended_structure", {})
                 if not isinstance(ext_struct, dict): ext_struct = {}
                 ext_bottom = normalize_bottom(ext_struct.get("bottom_type") or bot_text)
                 ext_head = normalize_headwear(ext_struct.get("headwear_type") or head_text)
-                
+
                 extended_rec = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
@@ -418,7 +414,7 @@ def process_batch(batch_items):
 
 def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_file):
     print(f"Starting V2 Annotation Pipeline on {len(target_items)} images...")
-    
+
     # 读入已有的待重试队列
     active_retry_map = {}
     if RETRY_QUEUE_FILE.exists():
@@ -426,15 +422,15 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
             old_q = json.loads(RETRY_QUEUE_FILE.read_text(encoding="utf-8"))
             active_retry_map = {q["item"]["image_id"]: q for q in old_q if "item" in q}
         except: pass
-        
+
     batches = [target_items[i:i+BATCH_SIZE] for i in range(0, len(target_items), BATCH_SIZE)]
     print(f"Total batches: {len(batches)}, Threads: {MAX_WORKERS}")
-    
+
     t0 = time.time()
     completed = 0
     all_official = []
     all_extended = []
-    
+
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         future_map = {pool.submit(process_batch, b): b for b in batches}
         for fut in as_completed(future_map):
@@ -454,7 +450,7 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
                 elapsed = time.time() - t0
                 fps = completed / max(0.1, elapsed)
                 print(f"  [Progress: {completed}/{len(target_items)}] Speed: {fps:.2f} img/s | Elapsed: {elapsed:.1f}s")
-                
+
     # 写入重试队列 (若为空则清理)
     remaining_retry = list(active_retry_map.values())
     if remaining_retry:
@@ -464,17 +460,17 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
     else:
         if RETRY_QUEUE_FILE.exists():
             RETRY_QUEUE_FILE.unlink()
-            
+
     all_official.sort(key=lambda x: int(x["image_id"]))
     all_extended.sort(key=lambda x: int(x["image_id"]))
-    
+
     out_official_file.parent.mkdir(parents=True, exist_ok=True)
     with open(out_official_file, "w", encoding="utf-8") as f:
         for r in all_official: f.write(json.dumps(r, ensure_ascii=False) + "\n")
-        
+
     with open(out_extended_file, "w", encoding="utf-8") as f:
         for r in all_extended: f.write(json.dumps(r, ensure_ascii=False) + "\n")
-        
+
     merged_records = []
     ext_map = {r["image_id"]: r for r in all_extended}
     for off in all_official:
@@ -487,10 +483,10 @@ def run_pipeline(target_items, out_official_file, out_extended_file, out_merged_
         merged["material_evidence"] = ext.get("material_evidence", {})
         merged["qc_audit"] = ext.get("qc_audit", {})
         merged_records.append(merged)
-        
+
     with open(out_merged_file, "w", encoding="utf-8") as f:
         for r in merged_records: f.write(json.dumps(r, ensure_ascii=False) + "\n")
-        
+
     print(f"\n[Completed] Exported official: {out_official_file} ({len(all_official)} lines)")
     print(f"[Completed] Exported extended: {out_extended_file} ({len(all_extended)} lines)")
     print(f"[Completed] Exported merged: {out_merged_file} ({len(merged_records)} lines)")
@@ -500,10 +496,10 @@ def main():
     parser.add_argument("--benchmark", action="store_true")
     parser.add_argument("--full", action="store_true")
     args = parser.parse_args()
-    
+
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
         all_items = json.load(f)
-        
+
     if args.benchmark:
         by_eth = defaultdict(list)
         for it in all_items: by_eth[it["ethnicity"]].append(it)

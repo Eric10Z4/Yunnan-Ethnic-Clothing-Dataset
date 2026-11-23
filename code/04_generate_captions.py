@@ -24,16 +24,16 @@ from pathlib import Path
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE_DIR = Path(__file__).resolve().parent.parent if "__file__" in locals() else Path(r"C:\Users\26730\Desktop\课程相关\计算机视觉\期中实验")
-DATASET_DIR = BASE_DIR / "dataset"
+from vlm_config import DEFAULT_MODEL_NAME, build_vlm_request, get_dataset_root, resolve_dataset_image
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATASET_DIR = get_dataset_root()
 IMAGES_DIR = DATASET_DIR / "images"
 ANNOTATIONS_DIR = DATASET_DIR / "annotations"
 CAPTIONS_FILE = ANNOTATIONS_DIR / "captions.jsonl"
 MAPPING_FILE = ANNOTATIONS_DIR / "dataset_manifest_mapped.json"
 
-API_URL = "http://localhost:8317/v1/chat/completions"
-API_KEY = "sk-eric10z4"
-MODEL_NAME = "gemini-3.1-flash-lite"
+MODEL_NAME = DEFAULT_MODEL_NAME
 BATCH_SIZE = 3
 MAX_WORKERS = 8
 
@@ -93,24 +93,20 @@ def load_existing_captions():
 
 def process_batch(batch_items):
     content = [{"type": "text", "text": PROMPT_ANNOTATION + f"\n\nAnnotate the following {len(batch_items)} images:"}]
-    
+
     for idx, item in enumerate(batch_items, 1):
-        b64 = get_b64(item["local_dest"])
+        b64 = get_b64(resolve_dataset_image(item))
         content.append({"type": "text", "text": f"\n--- Image #{idx} [ID: {item['image_id']}, Ethnicity: {item['ethnicity']}] ---"})
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-        
+
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": content}],
         "temperature": 0.1
     }
-    
-    req = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
-    )
-    
+
+    req = build_vlm_request(payload)
+
     try:
         with urllib.request.urlopen(req, timeout=45) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -119,7 +115,7 @@ def process_batch(batch_items):
                 raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
-            
+
             results = []
             for i, p_item in enumerate(parsed):
                 orig_item = batch_items[i] if i < len(batch_items) else batch_items[-1]
@@ -129,7 +125,7 @@ def process_batch(batch_items):
                     top_data = {"color": "traditional", "pattern": "embroidered", "material": "unknown", "sleeve_length": "long sleeves"}
                 else:
                     top_data["material"] = "unknown" # Enforce unknown per rubric
-                
+
                 record = {
                     "image_id": orig_item["image_id"],
                     "path": orig_item["path"],
@@ -162,43 +158,43 @@ def main():
     ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
         all_items = json.load(f)
-        
+
     existing = load_existing_captions()
     print(f"Total mapped dataset images: {len(all_items)} | Already captioned: {len(existing)}")
-    
+
     pending = [it for it in all_items if it["image_id"] not in existing]
     print(f"Pending to annotate: {len(pending)} images, batch size: {BATCH_SIZE}, workers: {MAX_WORKERS}...")
-    
+
     batches = [pending[i:i+BATCH_SIZE] for i in range(0, len(pending), BATCH_SIZE)]
     print(f"Divided into {len(batches)} parallel VLM batches...")
-    
+
     t0 = time.time()
     completed = 0
-    
+
     if len(batches) > 0:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
             future_map = {pool.submit(process_batch, b): b for b in batches}
             for fut in as_completed(future_map):
                 recs = fut.result()
                 completed += len(recs)
-                
+
                 with open(CAPTIONS_FILE, "a", encoding="utf-8") as f:
                     for r in recs:
                         f.write(json.dumps(r, ensure_ascii=False) + "\n")
                         existing[r["image_id"]] = r
-                        
+
                 if completed % 60 == 0 or completed >= len(pending):
                     elapsed = time.time() - t0
                     fps = completed / max(0.1, elapsed)
                     print(f"  [Annotation Progress: {completed}/{len(pending)}] Speed: {fps:.2f} img/s | Elapsed: {elapsed:.1f}s")
-                    
+
     # Sort and re-save captions.jsonl sequentially by image_id
     all_recs = list(existing.values())
     all_recs.sort(key=lambda x: int(x["image_id"]))
     with open(CAPTIONS_FILE, "w", encoding="utf-8") as f:
         for r in all_recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
-            
+
     print(f"\nAll {len(all_recs)} captions generated and validated! Saved to {CAPTIONS_FILE}")
 
 if __name__ == "__main__":

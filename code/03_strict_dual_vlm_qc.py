@@ -30,7 +30,9 @@ from pathlib import Path
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE_DIR = Path(__file__).resolve().parent.parent if "__file__" in locals() else Path(r"C:\Users\26730\Desktop\课程相关\计算机视觉\期中实验")
+from vlm_config import DEFAULT_MODEL_NAME, build_vlm_request
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DIR = BASE_DIR / "dataset" / "raw"
 PROCESSED_DIR = BASE_DIR / "dataset" / "processed"
 
@@ -39,9 +41,7 @@ CSV_SUMMARY = PROCESSED_DIR / "strict_dual_vlm_qc_summary.csv"
 GOLD_MANIFEST = PROCESSED_DIR / "strict_gold_pass_manifest.csv"
 HTML_DASHBOARD = PROCESSED_DIR / "strict_review_dashboard.html"
 
-API_URL = "http://localhost:8317/v1/chat/completions"
-API_KEY = "sk-eric10z4"
-MODEL_NAME = "gemini-3.1-flash-lite"
+MODEL_NAME = DEFAULT_MODEL_NAME
 BATCH_PAIRS = 4  # 每批送审 4 对图片 (共8张图)
 MAX_WORKERS = 8  # 6 线程并发
 
@@ -146,7 +146,7 @@ def evaluate_batch(batch_items):
             "text": PROMPT_SYSTEM + f"\n\n请针对以下 {len(batch_items)} 个样本（每个样本提供【图A原图】与【图B白底图】）进行严格逐一判定，输出严格包含 {len(batch_items)} 个元素的 JSON 数组："
         }
     ]
-    
+
     file_map = {}
     for idx, item in enumerate(batch_items, 1):
         file_map[idx] = item["filename"]
@@ -157,19 +157,15 @@ def evaluate_batch(batch_items):
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_r}"}})
         content.append({"type": "text", "text": f"【图B：白底图 #{idx}】"})
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_p}"}})
-        
+
     payload = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": content}],
         "temperature": 0.1
     }
-    
-    req = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
-    )
-    
+
+    req = build_vlm_request(payload)
+
     try:
         with urllib.request.urlopen(req, timeout=45) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -178,7 +174,7 @@ def evaluate_batch(batch_items):
                 raw_text = re.sub(r"^```[a-zA-Z]*\n", "", raw_text)
                 raw_text = re.sub(r"\n```$", "", raw_text)
             parsed = json.loads(raw_text)
-            
+
             standardized = []
             for i, p_item in enumerate(parsed):
                 fn = file_map.get(i+1, batch_items[i]["filename"] if i < len(batch_items) else "")
@@ -206,7 +202,7 @@ def generate_outputs(all_records):
         writer.writeheader()
         for r in all_records:
             writer.writerow(r)
-            
+
     # 2. 导出 PASS 黄金样本集
     pass_records = [r for r in all_records if r.get("status") == "PASS"]
     pass_records.sort(key=lambda x: (x.get("ethnicity", ""), -int(x.get("score", 0))))
@@ -215,7 +211,7 @@ def generate_outputs(all_records):
         writer.writeheader()
         for r in pass_records:
             writer.writerow(r)
-            
+
     print(f"[Export] 全量汇总已保存至: {CSV_SUMMARY}")
     print(f"[Export] 严格通过黄金样本已保存至: {GOLD_MANIFEST} (共 {len(pass_records)} 张)")
 
@@ -223,21 +219,21 @@ def main():
     print("==================================================")
     print("启动全量【图A原图 + 图B白底图】双图协同严格深度审查")
     print("==================================================")
-    
+
     all_pairs = load_all_pairs()
     completed_map = load_completed_records()
     print(f"总计配对样本量: {len(all_pairs)} 对 | 历史已审查: {len(completed_map)} 对")
-    
+
     pending_items = [p for p in all_pairs if p["filename"] not in completed_map]
     print(f"本次待执行审查: {len(pending_items)} 对，每批次: {BATCH_PAIRS} 对，线程数: {MAX_WORKERS}...")
-    
+
     batches = [pending_items[i:i+BATCH_PAIRS] for i in range(0, len(pending_items), BATCH_PAIRS)]
     print(f"共切分为 {len(batches)} 个并发多模态质检批次...")
-    
+
     t0 = time.time()
     completed_count = 0
     new_results = []
-    
+
     if len(batches) > 0:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
             future_map = {pool.submit(evaluate_batch, b): b for b in batches}
@@ -245,22 +241,22 @@ def main():
                 res_list = fut.result()
                 new_results.extend(res_list)
                 completed_count += len(res_list)
-                
+
                 with open(JSONL_LOG, "a", encoding="utf-8") as f:
                     for item in res_list:
                         f.write(json.dumps(item, ensure_ascii=False) + "\n")
                         completed_map[item["filename"]] = item
-                        
+
                 if completed_count % 100 == 0 or completed_count >= len(pending_items):
                     elapsed = time.time() - t0
                     fps = completed_count / max(0.1, elapsed)
                     pass_c = sum(1 for r in new_results if r.get("status") == "PASS")
                     print(f"  [质检进度: {completed_count}/{len(pending_items)}] 速度: {fps:.2f} 对/秒 | PASS数: {pass_c} | 耗时: {elapsed:.1f}s")
-                    
+
     all_records = list(completed_map.values())
     all_records.sort(key=lambda x: (x.get("ethnicity", ""), x.get("filename", "")))
     generate_outputs(all_records)
-    
+
     pass_total = sum(1 for r in all_records if r.get("status") == "PASS")
     fail_total = sum(1 for r in all_records if r.get("status") == "FAIL")
     print("\n==================================================")
